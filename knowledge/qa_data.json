@@ -1,0 +1,608 @@
+{
+  "version": "2.0",
+  "description": "覆盖云计算全栈（基础概念/计算/网络/存储/数据库/容器/安全/运维）",
+  "qa_list": [
+    {
+      "id": "vpc_subnet",
+      "keywords": [
+        "vpc",
+        "子网",
+        "subnet",
+        "vpc和子网",
+        "私有网络",
+        "网段"
+      ],
+      "answer": "<strong>VPC（虚拟私有网络）</strong>是云上逻辑隔离的私有网络空间，每个 VPC 拥有独立的 IP 网段（CIDR）。<br><strong>子网（Subnet）</strong>是对 VPC 网段的进一步细分。<br><br><strong>关键原则：</strong>子网网段必须是 VPC CIDR 范围的子集。例如 VPC 为 10.0.0.0/16（约 6.5 万个 IP），子网 10.0.1.0/24 只是其中一段（256 个 IP）。<br><br><strong>为什么？</strong>因为 VPC 是父网段，子网必须从中划分，否则路由无法正确寻址。",
+      "source": "《云计算网络规划指导书》第3章",
+      "image": "images/vpc_topology.png"
+    },
+    {
+      "id": "security_group",
+      "keywords": [
+        "安全组",
+        "security group",
+        "防火墙",
+        "端口",
+        "22",
+        "80",
+        "443"
+      ],
+      "answer": "<strong>安全组</strong>是一组虚拟防火墙规则，用于控制云主机的入站和出站流量。<br><br>它基于<strong>白名单</strong>思想：默认拒绝所有入站流量，仅放通明确允许的端口。<br><br><strong>常用端口：</strong><br>· 22（SSH）远程登录<br>· 80（HTTP）网站<br>· 443（HTTPS）安全网站<br>· 3306（MySQL）数据库<br><br>例如放通 22/80/443 端口后，才能远程登录和对外提供 Web 服务。",
+      "source": "《云计算网络规划指导书》第3章"
+    },
+    {
+      "id": "cloud_basic",
+      "keywords": [
+        "云计算",
+        "什么是云",
+        "cloud",
+        "云计算是什么"
+      ],
+      "answer": "<strong>云计算（Cloud Computing）</strong>是通过网络按需获取计算资源（服务器、存储、网络、软件）的服务模式，如同使用水电一样按需取用、按量付费。<br><br><strong>五大核心特征：</strong><br>1. 按需自助（On-Demand）<br>2. 广泛网络访问<br>3. 资源池化<br>4. 弹性伸缩<br>5. 可计量服务",
+      "source": "《云计算基础》第1章"
+    },
+    {
+      "id": "service_model",
+      "keywords": [
+        "iaas",
+        "paas",
+        "saas",
+        "服务模式",
+        "三种模式",
+        "基础设施即服务"
+      ],
+      "answer": "<strong>云计算三大服务模式：</strong><br><br>· <strong>IaaS（基础设施即服务）</strong>：提供服务器、存储、网络等基础设施，如云主机、对象存储<br>· <strong>PaaS（平台即服务）</strong>：提供开发运行平台，如数据库服务、容器平台<br>· <strong>SaaS（软件即服务）</strong>：提供现成软件，如在线文档、企业邮箱<br><br><strong>用户控制力：</strong>IaaS > PaaS > SaaS<br><strong>管理复杂度：</strong>IaaS > PaaS > SaaS<br><br>高职云计算实训通常首选 <strong>IaaS（云主机）</strong>作为入门项目。",
+      "source": "《云计算基础》第2章"
+    },
+    {
+      "id": "deploy_model",
+      "keywords": [
+        "公有云",
+        "私有云",
+        "混合云",
+        "部署模式"
+      ],
+      "answer": "<strong>三大部署模式：</strong><br><br>· <strong>公有云</strong>：资源由云厂商拥有，多租户共享，适合中小型业务<br>· <strong>私有云</strong>：为企业独立部署，资源独占，适合数据安全要求高的场景<br>· <strong>混合云</strong>：公有云 + 私有云互通，兼顾弹性与安全",
+      "source": "《云计算基础》第2章"
+    },
+    {
+      "id": "cidr",
+      "keywords": [
+        "cidr",
+        "网段规划",
+        "掩码",
+        "ip地址",
+        "ip规划"
+      ],
+      "answer": "<strong>CIDR 网段规划：</strong><br><br>· /16 → 65536 个 IP，适合大型 VPC<br>· /24 → 256 个 IP，适合常规子网<br>· /28 → 16 个 IP，适合小型测试网段<br><br><strong>规划要点：</strong>需预留足够的 IP 地址，避免子网可用 IP 不足导致业务无法扩展。",
+      "source": "《云计算网络规划指导书》第3章",
+      "image": "images/vpc_topology.png"
+    },
+    {
+      "id": "nginx_fail",
+      "keywords": [
+        "nginx",
+        "启动失败",
+        "job for",
+        "服务失败",
+        "systemctl",
+        "启动不了"
+      ],
+      "answer": "<strong>服务启动失败排查（三步走）：</strong><br><br><strong>第一步：查看服务状态</strong><br><code>systemctl status nginx</code><br><br><strong>第二步：查看错误日志</strong><br><code>journalctl -u nginx -n 20</code><br><br><strong>第三步：定位原因</strong><br>常见原因是<strong>端口被占用</strong>，检查：<br><code>ss -tlnp | grep :80</code><br><br>如果端口 80 被其他服务（如 apache2）占用，修改 nginx 配置换端口（80 → 8080），或停掉占用服务即可。<br><br>💡 <strong>记住口诀：</strong>看状态 → 看日志 → 改配置。",
+      "source": "《云计算排错手册》第1章"
+    },
+    {
+      "id": "port_block",
+      "keywords": [
+        "端口不通",
+        "无法连接",
+        "连不上",
+        "远程连接",
+        "ssh失败",
+        "访问不了"
+      ],
+      "answer": "<strong>端口不通 / 无法远程连接排查：</strong><br><br>1. 检查<strong>安全组</strong>是否放通对应端口（入方向规则）<br>2. 检查<strong>防火墙</strong>规则（ufw / firewalld）<br>3. 检查服务是否<strong>监听</strong>正确端口<br>4. 检查<strong>公网 IP</strong>是否绑定<br><br><strong>常用命令：</strong><br><code>ss -tlnp</code> 查看监听端口<br><code>sudo ufw status</code> 查看防火墙状态",
+      "source": "《云计算排错手册》第2章"
+    },
+    {
+      "id": "ip_insufficient",
+      "keywords": [
+        "ip不足",
+        "可用ip",
+        "ip不够",
+        "子网满",
+        "地址不够"
+      ],
+      "answer": "<strong>子网可用 IP 不足的解决方案：</strong><br><br>1. 检查子网 <strong>CIDR 掩码</strong>，适当扩大网段（如 /24 → /20）<br>2. 清理不再使用的<strong>闲置实例</strong>，释放 IP<br>3. 新建子网，将部分资源<strong>迁移</strong>过去<br><br>💡 规划网络时应提前预估业务规模，预留足够地址空间。",
+      "source": "《云计算排错手册》第3章"
+    },
+    {
+      "id": "create_vm",
+      "keywords": [
+        "创建云主机",
+        "怎么创建",
+        "云主机",
+        "ecs",
+        "新建实例",
+        "开通服务器"
+      ],
+      "answer": "<strong>云主机创建流程（5 步）：</strong><br><br><strong>① 基础配置</strong>：选择地域、可用区、实例规格<br><strong>② 镜像选择</strong>：选择操作系统（如 Ubuntu 22.04）<br><strong>③ 网络配置</strong>：选择 VPC、子网、安全组<br><strong>④ 系统配置</strong>：设置登录密码、主机名<br><strong>⑤ 确认下单</strong>：核对配置，完成创建<br><br>💡 网络配置是最关键也最易出错的环节，务必确认子网网段在 VPC 范围内、安全组已放通必要端口。",
+      "source": "《云计算实训任务书》实验一"
+    },
+    {
+      "id": "docker",
+      "keywords": [
+        "docker",
+        "容器",
+        "镜像拉取",
+        "容器启动"
+      ],
+      "answer": "<strong>Docker 常用操作：</strong><br><br><strong>安装 Docker：</strong><br><code>curl -fsSL https://get.docker.com | sh</code><br><br><strong>运行容器：</strong><br><code>docker run -d -p 80:80 --name web nginx</code><br><br><strong>查看容器：</strong><br><code>docker ps</code><br><br><strong>查看日志（排错）：</strong><br><code>docker logs web</code>",
+      "source": "《云计算服务部署指导书》第4章",
+      "image": "images/docker_vs_vm.png"
+    },
+    {
+      "id": "report",
+      "keywords": [
+        "报告",
+        "实训报告",
+        "怎么写报告",
+        "总结"
+      ],
+      "answer": "<strong>实训报告结构化模板：</strong><br><br><strong>一、实训目的</strong> —— 本次实训要掌握的知识与技能<br><strong>二、实训环境</strong> —— 平台、工具、网络环境<br><strong>三、实训步骤</strong> —— 关键操作步骤与配置<br><strong>四、遇到的问题与解决</strong> —— 排错记录<br><strong>五、总结与反思</strong> —— 知识收获与认知纠偏<br><br>💡 写反思时，可以记录自己最初的错误认知（例如误以为子网可独立于 VPC 存在），以及如何纠正的，这样更有价值。",
+      "source": "《云计算实训指导书》"
+    },
+    {
+      "id": "virtualization",
+      "keywords": [
+        "虚拟化",
+        "虚拟机",
+        "vm",
+        "hypervisor",
+        "容器和虚拟机"
+      ],
+      "answer": "<strong>虚拟化技术</strong>是云计算的核心技术，通过 Hypervisor 将一台物理服务器划分为多个相互隔离的虚拟机（VM）。<br><br><strong>虚拟机 vs 容器：</strong><br>· <strong>虚拟机</strong>：完整操作系统实例，隔离性强，启动较慢（分钟级）<br>· <strong>容器</strong>：共享宿主机内核，轻量快速，启动秒级，适合微服务",
+      "source": "《云计算基础》第2章",
+      "image": "images/docker_vs_vm.png"
+    },
+    {
+      "id": "iaas_paas_saas",
+      "keywords": [
+        "iaas",
+        "paas",
+        "saas",
+        "服务模式",
+        "云计算三层",
+        "三种服务"
+      ],
+      "answer": "<strong>云计算三大服务模式：</strong><br>1. <strong>IaaS（基础设施即服务）</strong>：提供计算、存储、网络等底层资源，如云主机 ECS、对象存储 OSS。类比：自己租毛坯房自己装修。<br>2. <strong>PaaS（平台即服务）</strong>：提供应用运行平台，如 RDS 数据库、容器引擎、函数计算。类比：拎包入住的精装房。<br>3. <strong>SaaS（软件即服务）</strong>：开箱即用的软件，如钉钉、飞书、Office 365。类比：住酒店，房间服务一应俱全。<br><br><strong>对高职学生：</strong>云主机实验课用的是 IaaS；做好的网页让大家访问相当于 SaaS；中间用到的 RDS 是 PaaS。",
+      "source": "《云计算基础》第1章"
+    },
+    {
+      "id": "public_private_hybrid",
+      "keywords": [
+        "公有云",
+        "私有云",
+        "混合云",
+        "部署模式",
+        "云分类"
+      ],
+      "answer": "<strong>三种部署模式：</strong><br>· <strong>公有云</strong>：云厂商建在公网上，谁都能租（阿里云、华为云、AWS）。便宜、弹性大。<br>· <strong>私有云</strong>：企业自己建的云（如学校机房+OpenStack），数据完全可控。<br>· <strong>混合云</strong>：公有私有结合，敏感数据放私有、突发流量用公有。",
+      "source": "《云计算基础》第1章"
+    },
+    {
+      "id": "elasticity",
+      "keywords": [
+        "弹性",
+        "弹性伸缩",
+        "伸缩",
+        "auto scaling",
+        "扩缩容",
+        "弹性扩容"
+      ],
+      "answer": "<strong>弹性伸缩（Auto Scaling）</strong>是根据负载自动增减云资源的能力。<br><br><strong>两种模式：</strong><br>· <strong>纵向伸缩（垂直）</strong>：单机加 CPU/内存，相当于给汽车换大排量引擎。<br>· <strong>横向伸缩（水平）</strong>：加机器数量，相当于多开几辆车。互联网主流。<br><br><strong>触发条件示例：</strong>CPU > 70% 持续 5 分钟 → 加 1 台；CPU < 30% 持续 10 分钟 → 减 1 台。",
+      "source": "《云计算基础》第1章",
+      "image": "images/three_tier_architecture.png"
+    },
+    {
+      "id": "ecs_spec",
+      "keywords": [
+        "云主机规格",
+        "实例规格",
+        "ecs规格",
+        "cpu内存比",
+        "机型选择"
+      ],
+      "answer": "<strong>云主机规格族</strong>按 CPU 内存比和应用场景划分：<br>· <strong>通用型（c7、s6）</strong>：1:2-1:4 CPU 内存比，Web/小数据库首选<br>· <strong>计算型（c7）</strong>：1:2，高 CPU 如游戏前端、批量计算<br>· <strong>内存型（r7）</strong>：1:8，Redis、内存数据库<br>· <strong>GPU 型（gn7）</strong>：AI 训练、深度学习<br><br><strong>选型口诀：</strong>Web 通用、数据库内存、计算密集选 c、AI/渲染选 GPU。",
+      "source": "《云主机选型指南》"
+    },
+    {
+      "id": "ebs_oss",
+      "keywords": [
+        "云硬盘",
+        "系统盘",
+        "数据盘",
+        "对象存储",
+        "oss",
+        "块存储",
+        "云盘"
+      ],
+      "answer": "<strong>两种主要存储类型：</strong><br>· <strong>块存储（云硬盘/EBS）</strong>：相当于云主机的硬盘，随机器走。性能高，但只能在挂载的机器里访问。适合系统盘、数据库盘。<br>· <strong>对象存储（OSS/S3）</strong>：通过 HTTP API 访问，可放图片、视频、备份文件。容量无限、便宜，但不能装系统。适合静态资源、日志归档。<br><br><strong>对比表：</strong><table border=1><tr><th>维度</th><th>块存储</th><th>对象存储</th></tr><tr><td>访问方式</td><td>读写块设备</td><td>HTTP API</td></tr><tr><td>性能</td><td>高 IOPS</td><td>中低延迟</td></tr><tr><td>价格</td><td>较贵</td><td>极便宜（几分钱/GB/月）</td></tr><tr><td>典型场景</td><td>系统盘、数据库</td><td>图片/视频/备份</td></tr></table>",
+      "source": "《云存储白皮书》第2章"
+    },
+    {
+      "id": "image",
+      "keywords": [
+        "镜像",
+        "系统镜像",
+        "自定义镜像",
+        "image",
+        "镜像市场",
+        "快照"
+      ],
+      "answer": "<strong>镜像</strong>是云主机的「系统安装盘」，相当于装了系统的 ISO 文件。<br><br><strong>类型：</strong><br>· <strong>公共镜像</strong>：云厂商提供（Ubuntu、CentOS、Windows Server 等）<br>· <strong>自定义镜像</strong>：把自己配好环境的机器打成一个镜像，下批机器直接用<br>· <strong>镜像市场</strong>：第三方提供的预装环境镜像（WordPress、Python 开发环境等）<br><br><strong>快照 vs 镜像：</strong>快照是某一时刻的磁盘数据备份（增量），镜像是完整的系统模板（完整）。",
+      "source": "《云主机操作手册》第2章"
+    },
+    {
+      "id": "ssh_login",
+      "keywords": [
+        "ssh",
+        "远程登录",
+        "远程连接",
+        "xshell",
+        "密钥对",
+        "秘钥对",
+        "公网ip"
+      ],
+      "answer": "<strong>SSH 远程登录云主机的标准流程：</strong><br>1. 控制台重置密码或绑定密钥对<br>2. 确认<strong>安全组已放通 22 端口</strong><br>3. 获取云主机<strong>公网 IP</strong>（不是私网 IP）<br>4. 本地用 ssh 工具连接：<br>   · Linux/Mac 终端：`ssh root@<公网IP>`<br>   · Windows：PuTTY / Xshell 填 IP 选 SSH 协议<br><br><strong>连接失败的常见原因：</strong>安全组未开 22、网络ACL 拦截、机器未运行中、密码错。",
+      "source": "《云主机操作手册》第3章"
+    },
+    {
+      "id": "eip_nat",
+      "keywords": [
+        "弹性公网ip",
+        "eip",
+        "公网ip",
+        "nat",
+        "网关",
+        "nat网关",
+        "私网",
+        "公网"
+      ],
+      "answer": "<strong>公网 IP</strong>是互联网上能直接访问的地址，<strong>私网 IP</strong>只在内部网络可达。<br><br><strong>EIP（弹性公网 IP）</strong>：可以随时绑定/解绑到任意云主机的公网 IP，灵活管理。<br><br><strong>NAT 网关</strong>：让多台没有公网 IP 的云主机共享一个公网 IP 上网，节省公网 IP 资源。<br><br><strong>关系：</strong>云主机创建时默认只有私网 IP（172.16.x.x 这种），要对外服务必须绑定 EIP 或经过 NAT 网关。",
+      "source": "《云计算网络规划指导书》第4章"
+    },
+    {
+      "id": "slb",
+      "keywords": [
+        "负载均衡",
+        "slb",
+        "alb",
+        "clb",
+        "负载",
+        "均衡器",
+        "lvs",
+        "nginx反向代理"
+      ],
+      "answer": "<strong>负载均衡（SLB）</strong>把客户端请求分发到多台后端服务器，实现高可用和高并发。<br><br><strong>三种类型：</strong><br>· <strong>应用层（七层 HTTP/HTTPS）</strong>：看 URL/Host 转发，如 ALB<br>· <strong>网络层（四层 TCP/UDP）</strong>：看端口转发，如 NLB、CLB<br>· <strong>传统型</strong>：已逐渐被七层/四层取代<br><br><strong>工作原理：</strong>客户端 → 负载均衡器（VIP）→ 后端多台 ECS。SLB 自身会健康检查，自动剔除故障机器。<br><br><strong>vs Nginx 反向代理：</strong>单机 Nginx 是软负载，SLB 是云厂商的硬负载，更稳定但要钱。",
+      "source": "《云计算网络规划指导书》第6章",
+      "image": "images/slb_architecture.png"
+    },
+    {
+      "id": "vpc_peering",
+      "keywords": [
+        "vpc对等",
+        "对等连接",
+        "vpc互通",
+        "peering",
+        "vpc peering"
+      ],
+      "answer": "<strong>VPC 对等连接</strong>让两个 VPC 之间的私网互通，就像把两个独立的局域网用网线连起来。<br><br><strong>使用要点：</strong><br>· 双方 VPC 的 CIDR <strong>不能重叠</strong>（否则路由混乱）<br>· 双方都要添加对等连接路由条目<br>· <strong>不支持传递</strong>：A↔B、A↔C 通了，B↔C 不通。要 B↔C 也通需再建一条对等连接。<br><br><strong>替代方案：</strong>云企业网（CEN/CC）、VPN、专线，更适合多 VPC 互联。",
+      "source": "《云计算网络规划指导书》第5章"
+    },
+    {
+      "id": "dns",
+      "keywords": [
+        "dns",
+        "域名解析",
+        "a记录",
+        "cname",
+        "ns记录",
+        "云解析"
+      ],
+      "answer": "<strong>DNS（域名解析）</strong>把 www.example.com 翻译成 IP 地址。<br><br><strong>常用记录类型：</strong><br>· <strong>A 记录</strong>：域名 → IPv4 地址<br>· <strong>AAAA 记录</strong>：域名 → IPv6 地址<br>· <strong>CNAME 记录</strong>：域名 → 别名（指向另一个域名）<br>· <strong>NS 记录</strong>：指定该域名由哪个 DNS 服务器解析<br>· <strong>MX 记录</strong>：邮件服务器<br><br><strong>云解析 DNS</strong>：云厂商提供的 DNS 服务，比传统 DNS 解析快、抗攻击。<br><br><strong>TTL</strong>：解析记录的缓存时间，越短越快生效但查询量大。",
+      "source": "《云计算网络规划指导书》第7章"
+    },
+    {
+      "id": "rds_vs_self",
+      "keywords": [
+        "rds",
+        "自建数据库",
+        "云数据库",
+        "关系型数据库",
+        "mysql对比"
+      ],
+      "answer": "<strong>RDS（云数据库）</strong> vs <strong>自建数据库</strong>：<br><br><table border=1><tr><th>维度</th><th>RDS</th><th>自建</th></tr><tr><td>运维</td><td>云厂商负责</td><td>自己装、备份、调优</td></tr><tr><td>高可用</td><td>默认主备双机</td><td>需自己配主从</td></tr><tr><td>成本</td><td>较贵但省人力</td><td>便宜但费人力</td></tr><tr><td>性能</td><td>通用调优</td><td>可深度定制</td></tr><tr><td>适用</td><td>中小应用、生产环境</td><td>特殊需求、学习</td></tr></table><br><strong>高职学习建议：</strong>先学自建（理解原理），再用 RDS（生产实践）。",
+      "source": "《云数据库选型》第1章",
+      "image": "images/mysql_master_slave.png"
+    },
+    {
+      "id": "primary_replica",
+      "keywords": [
+        "主从",
+        "读写分离",
+        "主备",
+        "replica",
+        "高可用",
+        "主从复制"
+      ],
+      "answer": "<strong>主从架构</strong>是数据库高可用的基础：1 个主库（写）+ 多个从库（读）。<br><br><strong>工作流程：</strong>应用写入 → 主库 → 主库把变更日志发给从库 → 从库重放日志同步数据<br><br><strong>主从两种模式：</strong><br>· <strong>异步</strong>：主库不等从库确认就返回，性能好但可能丢数据<br>· <strong>半同步</strong>：至少一个从库确认才返回，平衡性能和安全<br>· <strong>同步</strong>：所有从库确认才返回，最安全但最慢<br><br><strong>故障切换：</strong>主库挂了，从库升级为主，应用改连新主。",
+      "source": "《MySQL 高可用》第3章",
+      "image": "images/mysql_master_slave.png"
+    },
+    {
+      "id": "redis",
+      "keywords": [
+        "redis",
+        "缓存",
+        "内存数据库",
+        "nosql",
+        "键值"
+      ],
+      "answer": "<strong>Redis</strong>是一个基于内存的键值数据库，常用于缓存、计数器、排行榜、分布式锁。<br><br><strong>特点：</strong><br>· 数据放内存：读写速度极快（10万+ QPS）<br>· 支持多种数据结构：String、Hash、List、Set、SortedSet<br>· 可持久化：RDB 快照 / AOF 日志<br>· 单线程：避免锁竞争，简单可靠<br><br><strong>典型应用场景：</strong><br>1. <strong>缓存</strong>：把热点数据放 Redis，减轻数据库压力<br>2. <strong>计数器</strong>：点赞、播放量、UV<br>3. <strong>分布式锁</strong>：SETNX 实现<br>4. <strong>会话存储</strong>：Web 应用的 session",
+      "source": "《NoSQL 数据库》第2章"
+    },
+    {
+      "id": "oss_bucket",
+      "keywords": [
+        "对象存储",
+        "oss",
+        "bucket",
+        "对象",
+        "对象key",
+        "存储桶"
+      ],
+      "answer": "<strong>对象存储（OSS）</strong>的核心概念：<br>· <strong>Bucket（存储桶）</strong>：容器，命名全局唯一，所有对象都放桶里<br>· <strong>Object（对象）</strong>：文件 + 元数据，每个对象有唯一 Key<br>· <strong>Region</strong>：桶所在地域（北京、上海等）<br><br><strong>访问方式：</strong><br>· 控制台：网页上传下载<br>· API：RESTful HTTP 接口<br>· SDK：Python `oss2`、Java `aliyun-sdk-oss`<br>· 工具：ossutil、ossbrowser<br><br><strong>权限：</strong>ACL 私有/公共读/公共读写，RAM 策略更细粒度。<br><br><strong>典型用法：</strong>网站图片放 OSS，链接写进 HTML，节省云主机带宽。",
+      "source": "《云存储白皮书》第3章"
+    },
+    {
+      "id": "docker_vs_vm",
+      "keywords": [
+        "docker",
+        "容器",
+        "虚拟机",
+        "docker和vm",
+        "容器和虚拟机"
+      ],
+      "answer": "<strong>Docker 容器 vs 虚拟机（VM）</strong>：<br><br><table border=1><tr><th>维度</th><th>容器</th><th>虚拟机</th></tr><tr><td>启动速度</td><td>秒级</td><td>分钟级</td></tr><tr><td>性能</td><td>接近原生</td><td>5-15% 损耗</td></tr><tr><td>体积</td><td>MB 级</td><td>GB 级</td></tr><tr><td>隔离性</td><td>共享内核</td><td>完全隔离</td></tr><tr><td>操作系统</td><td>共享宿主机</td><td>独立 OS</td></tr></table><br><strong>通俗理解：</strong>VM 是一栋独立别墅（带地基和院子），容器是公寓里的一间房（共享楼板和水电）。<br><strong>应用：</strong>微服务、CI/CD、DevOps 首选容器；强隔离/不同 OS 仍用 VM。",
+      "source": "《容器技术》第1章",
+      "image": "images/docker_vs_vm.png"
+    },
+    {
+      "id": "dockerfile",
+      "keywords": [
+        "dockerfile",
+        "docker镜像构建",
+        "docker build",
+        "dockerfile指令"
+      ],
+      "answer": "<strong>Dockerfile</strong>是构建 Docker 镜像的脚本，常见指令：<br>· <strong>FROM</strong>：基础镜像（如 ubuntu:22.04）<br>· <strong>RUN</strong>：执行命令（apt install）<br>· <strong>COPY</strong>：复制文件<br>· <strong>ADD</strong>：复制并自动解压<br>· <strong>WORKDIR</strong>：设置工作目录<br>· <strong>CMD</strong>：容器启动命令<br>· <strong>EXPOSE</strong>：声明端口<br>· <strong>ENV</strong>：环境变量<br><br><strong>示例：</strong><br>```dockerfile<br>FROM python:3.11-slim<br>WORKDIR /app<br>COPY . .<br>RUN pip install -r requirements.txt<br>EXPOSE 5000<br>CMD [\"python\", \"app.py\"]<br>```<br>构建：`docker build -t myapp .`",
+      "source": "《容器技术》第2章"
+    },
+    {
+      "id": "k8s_basic",
+      "keywords": [
+        "k8s",
+        "kubernetes",
+        "k8s是什么",
+        "容器编排",
+        "pod"
+      ],
+      "answer": "<strong>Kubernetes（k8s）</strong>是 Google 开源的容器编排平台，用于自动化部署、扩缩、运维容器化应用。<br><br><strong>核心概念：</strong><br>· <strong>Pod</strong>：最小部署单元，可含 1+ 容器，共享网络和存储<br>· <strong>Deployment</strong>：声明式管理 Pod 副本数<br>· <strong>Service</strong>：为一组 Pod 提供统一访问入口（负载均衡）<br>· <strong>Namespace</strong>：逻辑隔离（如 dev/prod）<br>· <strong>Node</strong>：工作节点，跑 Pod 的机器<br>· <strong>Master/Control Plane</strong>：控制平面，调度的「大脑」<br><br><strong>简单理解：</strong>Docker 是「集装箱」，k8s 是「管理整个港口的操作系统」。",
+      "source": "《容器编排》第1章",
+      "image": "images/k8s_architecture.png"
+    },
+    {
+      "id": "docker_compose",
+      "keywords": [
+        "docker-compose",
+        "compose",
+        "docker compose",
+        "compose.yml"
+      ],
+      "answer": "<strong>Docker Compose</strong>用一个 YAML 文件管理多容器应用。<br><br><strong>核心字段：</strong><br>· <strong>services</strong>：定义各个容器<br>· <strong>image</strong>：使用的镜像<br>· <strong>ports</strong>：端口映射<br>· <strong>volumes</strong>：数据卷挂载<br>· <strong>environment</strong>：环境变量<br>· <strong>depends_on</strong>：依赖顺序<br>· <strong>networks</strong>：自定义网络<br><br><strong>示例：</strong><br>```yaml<br>services:<br>&nbsp;&nbsp;web:<br>&nbsp;&nbsp;&nbsp;&nbsp;build: .<br>&nbsp;&nbsp;&nbsp;&nbsp;ports: [\"80:80\"]<br>&nbsp;&nbsp;db:<br>&nbsp;&nbsp;&nbsp;&nbsp;image: mysql:8<br>&nbsp;&nbsp;&nbsp;&nbsp;environment:<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MYSQL_ROOT_PASSWORD: 123456<br>```<br>启动：`docker compose up -d`",
+      "source": "《容器技术》第3章"
+    },
+    {
+      "id": "iam",
+      "keywords": [
+        "iam",
+        "访问控制",
+        "ram",
+        "权限管理",
+        "用户权限",
+        "最小权限"
+      ],
+      "answer": "<strong>IAM（身份与访问管理）</strong>管理「谁能对什么资源做什么操作」。<br><br><strong>核心概念：</strong><br>· <strong>用户（User）</strong>：具体的人或服务<br>· <strong>用户组（Group）</strong>：一类用户的集合<br>· <strong>角色（Role）</strong>：一组权限的集合<br>· <strong>策略（Policy）</strong>：JSON 描述的权限规则<br><br><strong>最小权限原则：</strong>只给用户完成任务所需的最小权限，绝不滥用 root/admin 账号。<br><br><strong>常用做法：</strong><br>1. 团队成员用子账号 + 强密码 + MFA<br>2. 服务间调用使用<strong>角色</strong>而非长期密钥<br>3. 定期轮转 AccessKey<br>4. 敏感操作开启操作审计（CloudTrail/ActionTrail）",
+      "source": "《云安全白皮书》第3章"
+    },
+    {
+      "id": "https_ssl",
+      "keywords": [
+        "https",
+        "ssl",
+        "tls",
+        "证书",
+        "ca证书",
+        "自签名证书"
+      ],
+      "answer": "<strong>HTTPS = HTTP + TLS/SSL</strong>，对传输数据加密防窃听、防篡改。<br><br><strong>证书类型：</strong><br>· <strong>DV 证书</strong>：仅验证域名，便宜/免费（Let's Encrypt），适合个人<br>· <strong>OV 证书</strong>：验证企业身份，商业网站<br>· <strong>EV 证书</strong>：最严格验证，浏览器地址栏显公司名（已逐渐取消特殊显示）<br><br><strong>免费证书申请：</strong>Let's Encrypt（90 天），用 acme.sh 自动续期。<br><br><strong>自签名证书：</strong>仅供内网测试，浏览器会报「不安全」。<br><br><strong>nginx 配 HTTPS：</strong><br>```nginx<br>server {<br>&nbsp;&nbsp;listen 443 ssl;<br>&nbsp;&nbsp;ssl_certificate /path/cert.pem;<br>&nbsp;&nbsp;ssl_certificate_key /path/key.pem;<br>}<br>```",
+      "source": "《网络安全》第5章"
+    },
+    {
+      "id": "ddos",
+      "keywords": [
+        "ddos",
+        "ddos攻击",
+        "高防",
+        "抗d",
+        "waf",
+        "cc攻击"
+      ],
+      "answer": "<strong>DDoS（分布式拒绝服务）</strong>是用大量恶意请求耗尽目标资源，使其瘫痪。<br><br><strong>常见类型：</strong><br>· <strong>流量型</strong>：SYN Flood、UDP Flood，耗尽带宽<br>· <strong>连接型</strong>：Slowloris 等，耗尽连接数<br>· <strong>应用层（CC）</strong>：模拟正常用户刷接口，耗尽 CPU/数据库<br><br><strong>云上防护方案：</strong><br>1. <strong>高防 IP</strong>：清洗恶意流量后回源<br>2. <strong>WAF（Web 应用防火墙）</strong>：防 SQL 注入、XSS、CC<br>3. <strong>CDN</strong>：分散流量，隐藏源站<br>4. <strong>安全组</strong>：限制单 IP 连接数<br>5. <strong>弹性带宽</strong>：被攻击时临时扩容",
+      "source": "《云安全白皮书》第6章"
+    },
+    {
+      "id": "systemctl",
+      "keywords": [
+        "systemctl",
+        "systemd",
+        "服务管理",
+        "systemctl命令",
+        "systemd服务"
+      ],
+      "answer": "<strong>systemctl</strong>是 systemd 的主命令，用于管理系统服务（取代老旧的 service/chkconfig）。<br><br><strong>常用命令：</strong><br>· <code>systemctl start nginx</code> 启动<br>· <code>systemctl stop nginx</code> 停止<br>· <code>systemctl restart nginx</code> 重启<br>· <code>systemctl reload nginx</code> 重载配置（不中断）<br>· <code>systemctl status nginx</code> 状态<br>· <code>systemctl enable nginx</code> 开机自启<br>· <code>systemctl disable nginx</code> 取消自启<br>· <code>systemctl list-units --type=service</code> 列出所有服务<br>· <code>journalctl -u nginx -n 50</code> 看日志最后 50 行",
+      "source": "《Linux 运维基础》第3章"
+    },
+    {
+      "id": "nginx_basic",
+      "keywords": [
+        "nginx",
+        "nginx是什么",
+        "nginx用途",
+        "nginx功能"
+      ],
+      "answer": "<strong>Nginx</strong>是高性能的 HTTP 服务器和反向代理服务器，占据全球 Web 服务器市场第一。<br><br><strong>核心功能：</strong><br>· <strong>HTTP 服务器</strong>：托管静态网站（HTML、图片）<br>· <strong>反向代理</strong>：把请求转发到后端应用服务器<br>· <strong>负载均衡</strong>：把请求分发给多台后端<br>· <strong>邮件代理</strong>：IMAP/POP3/SMTP 代理（较少用）<br><br><strong>配置目录：</strong>/etc/nginx/，主配置 nginx.conf，include conf.d/*.conf<br><br><strong>常用命令：</strong><br>· <code>nginx -t</code> 测配置语法<br>· <code>nginx -s reload</code> 重载配置<br>· <code>systemctl restart nginx</code> 重启服务",
+      "source": "《Web 服务部署》第2章",
+      "image": "images/three_tier_architecture.png"
+    },
+    {
+      "id": "crontab",
+      "keywords": [
+        "crontab",
+        "定时任务",
+        "cron",
+        "定时执行",
+        "计划任务"
+      ],
+      "answer": "<strong>Crontab</strong>是 Linux 定时任务调度器，按时间规则自动执行命令。<br><br><strong>语法格式（5 颗星）：</strong><br>```<br>*  *  *  *  *  命令<br>分 时 日 月 周<br>```<br>· 第 1 列：分钟 0-59<br>· 第 2 列：小时 0-23<br>· 第 3 列：日 1-31<br>· 第 4 列：月 1-12<br>· 第 5 列：周 0-7（0 和 7 都是周日）<br><br><strong>示例：</strong><br>· <code>0 2 * * * /backup.sh</code> 每天凌晨 2 点备份<br>· <code>*/5 * * * * /check.sh</code> 每 5 分钟检查<br>· <code>0 0 1 * * /monthly.sh</code> 每月 1 号 0 点<br><br><strong>常用命令：</strong>crontab -e（编辑）、-l（列出）、-r（删除全部）<br><br><strong>注意：</strong>crontab 环境变量不全，绝对路径写命令，输出重定向到文件防邮件轰炸。",
+      "source": "《Linux 自动化运维》第2章"
+    },
+    {
+      "id": "log_analyze",
+      "keywords": [
+        "日志",
+        "日志分析",
+        "日志查看",
+        "grep日志",
+        "日志路径"
+      ],
+      "answer": "<strong>Linux 日志查看与分析：</strong><br><br><strong>系统日志位置：</strong><br>· <code>/var/log/syslog</code> 或 <code>/var/log/messages</code>（系统综合）<br>· <code>/var/log/auth.log</code>（认证、SSH）<br>· <code>/var/log/kern.log</code>（内核）<br>· <code>/var/log/nginx/access.log</code>（Nginx 访问）<br>· <code>/var/log/nginx/error.log</code>（Nginx 错误）<br>· <code>journalctl</code>（systemd 服务日志）<br><br><strong>常用分析命令：</strong><br>· <code>tail -f /var/log/nginx/access.log</code> 实时跟踪<br>· <code>grep '404' access.log</code> 查 404<br>· <code>awk '{print $1}' access.log | sort | uniq -c | sort -rn | head 10</code> 查访问最多的 IP<br>· <code>grep -c 'ERROR' app.log</code> 统计错误数<br>· <code>sed -n '/2024-01-01/,/2024-01-02/p' app.log</code> 查某时间区间",
+      "source": "《Linux 运维基础》第6章"
+    },
+    {
+      "id": "process_mgmt",
+      "keywords": [
+        "进程",
+        "进程管理",
+        "ps命令",
+        "kill",
+        "top命令",
+        "nohup"
+      ],
+      "answer": "<strong>Linux 进程管理速查：</strong><br><br><strong>查看进程：</strong><br>· <code>ps aux</code> 静态列出所有进程<br>· <code>ps -ef | grep nginx</code> 查 nginx 进程<br>· <code>top</code> / <code>htop</code> 动态看 CPU/内存占用<br>· <code>pgrep nginx</code> 按名字查 PID<br><br><strong>结束进程：</strong><br>· <code>kill PID</code> 优雅退出（SIGTERM）<br>· <code>kill -9 PID</code> 强制结束（SIGKILL）<br>· <code>killall nginx</code> 按名字杀<br>· <code>pkill -f 'python app'</code> 按命令行匹配<br><br><strong>后台运行：</strong><br>· <code>nohup python app.py &gt; app.log 2&gt;&amp;1 &amp;</code> 后台跑并记日志<br>· <code>disown</code> 让进程脱离当前 shell<br><br><strong>守护进程：</strong>用 systemd 服务或 supervisor，长期稳定运行推荐。",
+      "source": "《Linux 运维基础》第5章"
+    },
+    {
+      "id": "disk_mgmt",
+      "keywords": [
+        "磁盘",
+        "磁盘管理",
+        "df",
+        "du",
+        "磁盘空间",
+        "fdisk",
+        "磁盘挂载"
+      ],
+      "answer": "<strong>Linux 磁盘管理速查：</strong><br><br><strong>查看空间：</strong><br>· <code>df -h</code> 看各分区使用率（人类可读）<br>· <code>du -sh /var/*</code> 看某目录总大小<br>· <code>du -sh /var/log/* | sort -h | tail</code> 找最大的日志<br><br><strong>挂载磁盘：</strong><br>1. <code>lsblk</code> 看磁盘设备（如 /dev/vdb）<br>2. <code>fdisk /dev/vdb</code> 分区（n 新建、w 保存）<br>3. <code>mkfs.ext4 /dev/vdb1</code> 格式化<br>4. <code>mkdir /data</code> 建挂载点<br>5. <code>mount /dev/vdb1 /data</code> 挂载<br>6. <code>echo '/dev/vdb1 /data ext4 defaults 0 0' &gt;&gt; /etc/fstab</code> 开机自动挂载<br><br><strong>扩缩容：</strong>云硬盘支持<strong>在线扩容</strong>（无需停机），扩完后在 OS 内 growpart / xfs_growfs / resize2fs 扩文件系统。",
+      "source": "《Linux 存储管理》第1章"
+    },
+    {
+      "id": "monitor_metrics",
+      "keywords": [
+        "监控",
+        "监控指标",
+        "cpu监控",
+        "内存监控",
+        "告警",
+        "prometheus",
+        "云监控"
+      ],
+      "answer": "<strong>云监控的四大黄金指标：</strong><br>· <strong>CPU 使用率</strong>：长期 > 80% 要扩 CPU 或排查进程<br>· <strong>内存使用率</strong>：> 90% 会触发 OOM<br>· <strong>磁盘使用率</strong>：> 90% 风险大，要清理或扩容<br>· <strong>网络流量</strong>：看是否异常出站（被黑？）<br><br><strong>云监控服务：</strong>云监控 CloudMonitor、云监控 CES，开箱即用。<br><br><strong>开源方案：</strong>Prometheus + Grafana + Alertmanager，定制化强。<br><br><strong>告警设置原则：</strong><br>1. 阈值要合理：避免狼来了<br>2. 分级：紧急/重要/普通用不同通知渠道<br>3. 告警要可执行：收到后知道做什么<br>4. 静默期：维护窗口内不打扰",
+      "source": "《云运维监控》第2章"
+    },
+    {
+      "id": "what_is_iac",
+      "keywords": [
+        "iac",
+        "基础设施即代码",
+        "terraform",
+        "pulumi",
+        "ansible"
+      ],
+      "answer": "<strong>IaC（Infrastructure as Code，基础设施即代码）</strong>是用代码描述和管理云资源，而非手动点击控制台。<br><br><strong>主流工具：</strong><br>· <strong>Terraform</strong>：跨云、声明式 HCL 语言<br>· <strong>Pulumi</strong>：用 Python/TS/Go 编程<br>· <strong>AWS CDK / 阿里云 ROS</strong>：云厂商自家的<br>· <strong>Ansible</strong>：偏运维配置管理<br><br><strong>核心优势：</strong><br>1. <strong>可版本化</strong>：Git 管理，谁改了一目了然<br>2. <strong>可复用</strong>：一套代码多环境复用<br>3. <strong>可审计</strong>：执行 plan 看清要改什么<br>4. <strong>可恢复</strong>：灾难时一键重建<br><br><strong>简单示例：</strong>创建一台云主机的 Terraform 代码：<br>```hcl<br>resource \"alicloud_instance\" \"web\" {<br>&nbsp;&nbsp;image_id = \"ubuntu_22_04_x64\"<br>&nbsp;&nbsp;instance_type = \"ecs.t6-c1m2.large\"<br>}<br>```",
+      "source": "《DevOps 实践》第1章"
+    },
+    {
+      "id": "cdn",
+      "keywords": [
+        "cdn",
+        "内容分发",
+        "边缘节点",
+        "cdn加速",
+        "缓存节点"
+      ],
+      "answer": "<strong>CDN（Content Delivery Network）</strong>是把内容缓存在全国各地的边缘节点，让用户就近访问。<br><br><strong>工作原理：</strong>用户访问静态资源 → DNS 解析到最近的边缘节点 → 边缘节点有缓存就直接返回，没有就去源站拉取<br><br><strong>解决的问题：</strong><br>1. <strong>延迟高</strong>：跨省跨网访问慢<br>2. <strong>带宽贵</strong>：源站带宽压力大<br>3. <strong>扛不住</strong>：突发流量打挂源站<br>4. <strong>不安全</strong>：源站 IP 暴露易被攻击<br><br><strong>典型场景：</strong>网站图片/视频加速、App 静态资源、软件包下载、直播流媒体。<br><br><strong>配置步骤：</strong>加 CDN 域名 → 配源站信息 → 配 CNAME 解析 → 配缓存规则 → 配 HTTPS 证书。",
+      "source": "《网络加速》第1章",
+      "image": "images/three_tier_architecture.png"
+    },
+    {
+      "id": "firewall_iptables",
+      "keywords": [
+        "iptables",
+        "防火墙",
+        "firewalld",
+        "ufw",
+        "linux防火墙"
+      ],
+      "answer": "<strong>Linux 防火墙（云上对应安全组）</strong>：<br><br><strong>云端（先开）：</strong>云控制台 <strong>安全组</strong> 是第一道关，决定哪些流量能进/出云主机。<br><br><strong>系统内：</strong>用 iptables（CentOS 6）/ firewalld（CentOS 7+）/ ufw（Ubuntu）。<br><br><strong>ufw 常用命令：</strong><br>· <code>ufw allow 22</code> 允许 22<br>· <code>ufw allow 80/tcp</code> 允许 80 TCP<br>· <code>ufw enable</code> 启用<br>· <code>ufw status</code> 状态<br>· <code>ufw delete allow 80</code> 删除规则<br><br><strong>firewalld 常用：</strong><br>· <code>firewall-cmd --zone=public --add-port=80/tcp --permanent</code><br>· <code>firewall-cmd --reload</code><br><br><strong>调试技巧：</strong>连不上时先关防火墙测试，确认是规则问题再针对性开放。",
+      "source": "《Linux 运维基础》第8章"
+    },
+    {
+      "id": "cloud_migration",
+      "keywords": [
+        "上云",
+        "迁云",
+        "迁移",
+        "云迁移",
+        "hybrid"
+      ],
+      "answer": "<strong>常见上云迁移方案：</strong><br><br>1. <strong>直接迁移（Rehost）</strong>：把现有服务器原样搬到云上（lift & shift），最快<br>2. <strong>改造迁移（Replatform）</strong>：换到云上托管服务（如自建 MySQL → RDS）<br>3. <strong>重构迁移（Refactor）</strong>：重新设计为微服务、容器化架构<br>4. <strong>混合云</strong>：部分业务留本地，部分上云<br><br><strong>迁移工具：</strong><br>· <strong>服务器迁移中心 SMC</strong>：整机迁移，零停机<br>· <strong>数据迁移服务 DTS</strong>：数据库迁移，增量同步<br>· <strong>对象存储迁移工具</strong>：OSS 之间的数据迁移<br><br><strong>迁移前清单：</strong>资产清单、网络规划、安全合规、容灾方案、回滚预案。",
+      "source": "《云迁移白皮书》"
+    },
+    {
+      "id": "interview_q",
+      "keywords": [
+        "面试",
+        "面试题",
+        "常见问题",
+        "招聘",
+        "考题"
+      ],
+      "answer": "<strong>云计算常见面试题（高职/初级）：</strong><br><br>1. <strong>什么是云？公有云/私有云/混合云区别？</strong><br>2. <strong>IaaS/PaaS/SaaS 区别？</strong>举例说明<br>3. <strong>VPC 是什么？子网怎么划？</strong>10.0.0.0/16 的可用 IP 数？<br>4. <strong>安全组 vs 网络 ACL 区别？</strong><br>5. <strong>怎么排查 SSH 连不上云主机？</strong>（安全组、机器状态、网络）<br>6. <strong>Docker 和虚拟机区别？</strong>为什么用容器？<br>7. <strong>k8s 中 Pod 是什么？</strong>和容器什么关系？<br>8. <strong>MySQL 主从复制原理？</strong>异步/半同步/同步区别？<br>9. <strong>nginx 反向代理怎么配？</strong><br>10. <strong>systemctl status 看到 failed 怎么排查？</strong>（journalctl、看日志）<br><br><strong>答题技巧：</strong>先答核心定义，再举例子，最后说实际场景。",
+      "source": "《云计算岗位面试题集》"
+    }
+  ],
+  "total": 47,
+  "_说明": "云智实训助手 - 智能问答知识库。教师可编辑此文件添加/修改条目"
+}

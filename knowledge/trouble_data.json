@@ -1,0 +1,842 @@
+{
+  "_说明": "云智实训助手 - 排错诊断知识库。每条规则含特征、原因、命令、方案、原理。",
+  "rules": [
+    {
+      "id": "service_start_failed",
+      "name": "服务启动失败",
+      "patterns": [
+        "job for",
+        "service failed",
+        "control process exited",
+        "failed to start",
+        "启动失败",
+        "起不来",
+        "起不了",
+        "无法启动"
+      ],
+      "causes": [
+        "端口被其他服务占用（如 80 端口被 apache2 占用）",
+        "配置文件语法错误（unknown directive、缺少分号）",
+        "配置文件引用了不存在的路径或证书",
+        "依赖库缺失（libxxx.so not found）"
+      ],
+      "commands": [
+        "systemctl status nginx",
+        "journalctl -u nginx -n 20",
+        "nginx -t",
+        "ss -tlnp | grep :80"
+      ],
+      "solution": "按顺序执行：① nginx -t 先查语法，报错会直接告诉你第几行；② 若提示端口占用，用 ss -tlnp | grep :80 找到占用进程，停掉它或给 nginx 换端口；③ 若为依赖缺失，apt install 补装后重启。每改一次配置都要 systemctl restart nginx 重新加载。",
+      "principle": "systemctl 只告诉你「失败了」，不会告诉你为什么。真正的原因写在 journalctl 日志和 nginx -t 的自检结果里，所以排查顺序永远是：看状态 → 看日志 → 定位原因。",
+      "source": "《云计算排错手册》第1章"
+    },
+    {
+      "id": "port_blocked",
+      "name": "端口不通 / 无法远程连接",
+      "patterns": [
+        "address already in use",
+        "connection refused",
+        "connection timed out",
+        "no route to host",
+        "端口不通",
+        "连不上",
+        "无法访问",
+        "拒绝连接",
+        "超时"
+      ],
+      "causes": [
+        "云平台安全组没有放通该端口",
+        "系统防火墙（ufw / firewalld）拦截",
+        "服务没有监听在正确端口或未启动",
+        "云主机没有绑定公网 IP"
+      ],
+      "commands": [
+        "ss -tlnp",
+        "sudo ufw status",
+        "curl -I http://localhost:80",
+        "ping <公网IP>"
+      ],
+      "solution": "按「由近到远」逐级验证：① 本机 curl localhost:端口，通不通？不通说明服务本身没起来；② 查 ss -tlnp 确认监听端口；③ 本机通但外网不通，检查云控制台安全组入站规则；④ 最后检查系统防火墙 ufw status。",
+      "principle": "一次网络访问要经过「服务监听 → 系统防火墙 → 云安全组 → 公网 IP」四道关卡，任何一道没过都会表现为「连不上」。逐级排除才能一次定位，而不是全靠猜。",
+      "source": "《云计算排错手册》第2章"
+    },
+    {
+      "id": "ip_insufficient",
+      "name": "子网可用 IP 不足",
+      "patterns": [
+        "insufficient ip",
+        "insufficientipaddresses",
+        "no available ip",
+        "ip 不足",
+        "地址不足",
+        "网段不够"
+      ],
+      "causes": [
+        "子网 CIDR 掩码太小，可分配 IP 数量不够",
+        "已创建的实例占用了大部分 IP",
+        "停止但未释放的实例仍占用 IP"
+      ],
+      "commands": [
+        "在控制台查看子网详情的可用 IP 数",
+        "检查子网 CIDR（如 /28 仅有 11 个可用 IP）"
+      ],
+      "solution": "① 先清理不再使用的实例释放 IP；② 若资源确实需要扩容，新建更大的子网（如 /28 改为 /24）并迁移资源；③ 规划阶段就要预留余量，不要刚好够用。",
+      "principle": "云平台的每个子网都会预留部分 IP 做网关和广播地址，所以 /24 的 256 个地址实际可用约 251 个。规划网段时必须把这部分损耗算进去。",
+      "source": "《云计算排错手册》第3章"
+    },
+    {
+      "id": "permission_denied",
+      "name": "权限不足",
+      "patterns": [
+        "permission denied",
+        "access denied",
+        "eacces",
+        "permissionerror",
+        "权限不足",
+        "没权限",
+        "不允许"
+      ],
+      "causes": [
+        "当前用户不是 root，也没有加 sudo",
+        "目标文件/目录权限不允许当前用户读写",
+        "要写入的目录属于其他用户"
+      ],
+      "commands": [
+        "whoami",
+        "ls -l <文件>",
+        "sudo <命令>",
+        "stat <文件>"
+      ],
+      "solution": "① 用 whoami 确认当前身份；② 需要管理员权限的命令前加 sudo；③ 若是自己的文件权限不对，用 chmod 调整（文件 644、目录 755 是常用值）；④ 不要图省事直接 chmod 777，那是把文件对所有人都开放读写，有安全风险。",
+      "principle": "Linux 的权限检查分三层：用户（u）、用户组（g）、其他人（o），每层有读（r=4）、写（w=2）、执行（x=1）。chmod 755 就是「所有者全权限，其他人和组读+执行」。",
+      "source": "《云计算排错手册》第4章"
+    },
+    {
+      "id": "disk_full",
+      "name": "磁盘空间不足",
+      "patterns": [
+        "no space left on device",
+        "disk full",
+        "diskfull",
+        "磁盘不足",
+        "空间不足",
+        "磁盘满了"
+      ],
+      "causes": [
+        "日志文件长期堆积（journal / nginx access.log）",
+        "安装包缓存未清理",
+        "大文件（备份、镜像）占用空间"
+      ],
+      "commands": [
+        "df -h",
+        "du -sh /* | sort -rh | head -10",
+        "journalctl --vacuum-size=100M",
+        "sudo apt clean"
+      ],
+      "solution": "① df -h 确认是否真的满了；② du -sh /* 找出占用最大的目录；③ 清理日志（journalctl --vacuum-size=100M）和 apt 缓存（apt clean）；④ 确认无用后再删大文件，删除前先确认不是业务数据。",
+      "principle": "磁盘满往往不是装了太多东西，而是日志在无限增长。所以服务器上正确的做法是配置日志轮转（logrotate），而不是等满了再手动删。",
+      "source": "《云计算排错手册》第5章"
+    },
+    {
+      "id": "config_error",
+      "name": "配置文件语法错误",
+      "patterns": [
+        "unknown directive",
+        "syntax error",
+        "unexpected end of file",
+        "missing semicolon",
+        "语法错误",
+        "配置错误",
+        "配置报错"
+      ],
+      "causes": [
+        "配置项拼写错误或使用了不存在的指令",
+        "语句结尾缺少分号",
+        "花括号没有配对"
+      ],
+      "commands": [
+        "nginx -t",
+        "grep -n \"server_name\" /etc/nginx/sites-enabled/*"
+      ],
+      "solution": "① 用 nginx -t 自检，输出会明确指出出错的文件和行号；② 按提示行号修改，常见是少分号或括号不配对；③ 改完必须再跑一次 nginx -t，显示 successful 才能 reload。",
+      "principle": "配置文件的语法校验一定要在 reload 之前做。直接重启一个语法错误的服务，会导致服务彻底起不来，本来在线的业务也会中断。",
+      "source": "《云计算排错手册》第1章"
+    },
+    {
+      "id": "ssh_conn_refused",
+      "name": "SSH 连接被拒绝",
+      "patterns": [
+        "connection refused",
+        "connect: connection refused",
+        "无法连接",
+        "拒绝连接",
+        "连不上ssh",
+        "ssh不上",
+        "ssh refused"
+      ],
+      "causes": [
+        "云主机未运行（控制台查看状态）",
+        "安全组未放通 22 端口",
+        "公网 IP 输错（用了私网 IP）",
+        "本机网络到云端不通（防火墙/VPN 拦截）",
+        "云主机 OS 内 sshd 服务未启动或异常"
+      ],
+      "commands": [
+        "ping <公网IP> - 看是否通",
+        "telnet <公网IP> 22 - 看端口",
+        "ssh -v root@<公网IP> - 看详细错误",
+        "控制台 → 云监控 → 看机器 CPU/网络"
+      ],
+      "solution": "<strong>按顺序排查：</strong><br>1. 控制台确认机器是「运行中」<br>2. 安全组入方向有 22 端口规则<br>3. 用 ping 测试网络<br>4. 实在不行用控制台的「VNC/Workbench 远程连接」登录进去查 sshd 状态",
+      "principle": "<strong>原理：</strong>SSH 走 TCP 22，「Connection refused」说明 TCP 握手被拒绝，本质是「端口没人监听」。",
+      "source": "《云上运维排错手册》第2章"
+    },
+    {
+      "id": "ssh_timeout",
+      "name": "SSH 连接超时",
+      "patterns": [
+        "connection timed out",
+        "ssh timeout",
+        "超时",
+        "ssh卡住",
+        "连不上",
+        "无响应"
+      ],
+      "causes": [
+        "安全组没放 22 端口（关键！）",
+        "云主机未分配公网 IP（用了私网 IP）",
+        "云主机所在地域网络异常",
+        "本地到云端公网的网络链路有 ACL 拦截",
+        "运营商封了 22 端口（部分校园网/企业网）"
+      ],
+      "commands": [
+        "ping <公网IP> - 看是否通",
+        "traceroute <公网IP> - 看路由",
+        "curl ifconfig.me - 看本地出口 IP",
+        "控制台 → ECS → 安全组 → 检查入方向"
+      ],
+      "solution": "<strong>和 Connection refused 区别：</strong>超时是「没人回应」（可能防火墙默默丢包），refused 是「明确拒绝」。<br><strong>排查重点：</strong>1. 改用 2222 等其他端口绕过运营商封 22；2. 改用控制台 VNC 直接登录；3. 确认安全组放行 22。",
+      "principle": "<strong>原理：</strong>TCP 握手 SYN 包被中间设备丢弃，没回 RST 也没回 SYN-ACK，连接一直挂起到超时。",
+      "source": "《云上运维排错手册》第3章"
+    },
+    {
+      "id": "port_in_use",
+      "name": "端口被占用",
+      "patterns": [
+        "address already in use",
+        "bind: address",
+        "端口占用",
+        "端口被占",
+        "端口已在使用",
+        "bind: cannot assign requested address"
+      ],
+      "causes": [
+        "要启动的服务端口已被其他进程占用（如 80 被 apache 占了）",
+        "上次启动的服务没关干净，进程还在",
+        "配置文件端口写错，和其他服务冲突"
+      ],
+      "commands": [
+        "ss -tlnp | grep :80 - 看谁在用 80",
+        "lsof -i :80 - 看进程",
+        "netstat -anpt | grep :80 - 老式命令",
+        "ps aux | grep nginx - 查进程",
+        "fuser -k 80/tcp - 杀占用进程"
+      ],
+      "solution": "<strong>解决：</strong><br>1. <code>ss -tlnp | grep :端口</code> 查到 PID<br>2. <code>kill PID</code> 或 <code>kill -9 PID</code><br>3. 改配置文件换端口（推荐）<br>4. 若是 zombie 进程：<code>fuser -k 端口/tcp</code>",
+      "principle": "<strong>原理：</strong>一个端口同一时间只能被一个进程监听（socket 绑定）。先关旧进程或换端口。",
+      "source": "《Linux 排错》第1章"
+    },
+    {
+      "id": "out_of_memory",
+      "name": "内存溢出 OOM",
+      "patterns": [
+        "out of memory",
+        "oom",
+        "killed process",
+        "outofmemory",
+        "内存溢出",
+        "被oom"
+      ],
+      "causes": [
+        "应用有内存泄漏（请求越多越涨）",
+        "突发流量超过当前配置",
+        "JVM 等虚拟机的堆设置过大",
+        "其他进程抢内存（如 Elasticsearch）",
+        "容器内存限制（cgroup）触发"
+      ],
+      "commands": [
+        "free -h - 看内存",
+        "dmesg | grep -i oom - 看内核 OOM 日志",
+        "top 按 M 排序找大内存进程",
+        "ps aux --sort=-rss | head - 看前 10 内存大户",
+        "cat /proc/<pid>/status 看详细"
+      ],
+      "solution": "<strong>应急：</strong>1. <code>systemctl restart app</code> 重启；2. 临时扩内存（控制台改配置，重启）<br><strong>根治：</strong>1. 看代码找泄漏；2. 加内存监控告警；3. 容器场景设 memory limit；4. JVM 加 -Xmx 控堆",
+      "principle": "<strong>原理：</strong>Linux 在内存不足时触发 OOM Killer，强制 kill 占用最高的进程，腾出内存救系统。",
+      "source": "《Linux 排错》第3章"
+    },
+    {
+      "id": "no_space",
+      "name": "磁盘空间不足",
+      "patterns": [
+        "no space left",
+        "no space left on device",
+        "磁盘满",
+        "空间不足",
+        "disk full",
+        "enospc"
+      ],
+      "causes": [
+        "大文件没清理（旧的 log、备份）",
+        "Docker 容器/镜像/卷占满",
+        "inode 耗尽（小文件过多）",
+        "数据库表占满"
+      ],
+      "commands": [
+        "df -h - 看分区",
+        "du -sh /var/* | sort -h | tail - 找大目录",
+        "du -sh /var/log/* - 看日志",
+        "docker system df - 看 docker 占的",
+        "df -i - 看 inode"
+      ],
+      "solution": "<strong>三步：</strong><br>1. <code>du -sh /* | sort -h | tail</code> 找大目录<br>2. <code>du -sh /var/log/*.log</code> 找大文件<br>3. <code>&gt; app.log</code> 清空日志或 <code>rm</code> 删旧文件<br><strong>容器场景：</strong><code>docker system prune -a</code> 一键清理",
+      "principle": "<strong>原理：</strong>磁盘是块设备，写满后再写会 ENOSPC 错误。inode 满则连空文件都创建不了。",
+      "source": "《Linux 排错》第4章"
+    },
+    {
+      "id": "502_bad_gateway",
+      "name": "Nginx 502 Bad Gateway",
+      "patterns": [
+        "502",
+        "bad gateway",
+        "502 bad gateway",
+        "网关错误"
+      ],
+      "causes": [
+        "后端服务没启动（最常见）",
+        "后端端口配置错（upstream 写错）",
+        "后端进程崩了（看应用日志）",
+        "防火墙拦截了 nginx → 后端的内网流量",
+        "代理超时（proxy_*_timeout 太小）"
+      ],
+      "commands": [
+        "systemctl status backend - 看后端状态",
+        "curl http://127.0.0.1:8080 - 本地测后端",
+        "tail -f /var/log/nginx/error.log - 看 nginx 错误",
+        "journalctl -u backend -n 50 - 看后端日志",
+        "ss -tlnp | grep 8080 - 看端口监听"
+      ],
+      "solution": "<strong>8 成是后端没起来：</strong><br>1. <code>systemctl restart backend</code><br>2. 看 nginx error log 里的具体错误（upstream connect error / connection refused / timeout）<br>3. 排查后端应用本身问题<br>4. 调大 <code>proxy_connect_timeout</code> / <code>proxy_read_timeout</code>",
+      "principle": "<strong>原理：</strong>Nginx 作反向代理时连不上后端（TCP 失败 / 后端没回 / 超时），就返 502 给客户端。",
+      "source": "《Nginx 排错》第1章"
+    },
+    {
+      "id": "404_not_found",
+      "name": "404 Not Found",
+      "patterns": [
+        "404",
+        "not found",
+        "找不到",
+        "404 not found",
+        "page not found"
+      ],
+      "causes": [
+        "URL 路径拼错",
+        "静态文件路径不在 root 目录下",
+        "Web 应用路由没匹配（动态网站常见）",
+        "Nginx location 配置错",
+        "文件/目录权限不足，nginx 看不到"
+      ],
+      "commands": [
+        "ls -la /var/www/html/ - 看文件",
+        "curl -v http://localhost/path - 看响应头",
+        "tail -f /var/log/nginx/access.log",
+        "nginx -T | grep root - 看 root 路径",
+        "stat /var/www/html/index.html"
+      ],
+      "solution": "<strong>先看是哪个环节 404：</strong><br>· 静态 404：检查文件路径 vs nginx root 配置<br>· 应用 404：检查后端路由配置、URL 模式<br>· 权限 404：<code>chmod 755</code> + <code>chown www-data</code>（Nginx 用户）<br><strong>调试技巧：</strong><code>curl -v</code> 看响应头和 Location",
+      "principle": "<strong>原理：</strong>HTTP 404 = 资源不存在。可能是真没有，也可能是路径解析错。",
+      "source": "《HTTP 错误码》第1章"
+    },
+    {
+      "id": "ssl_cert_expired",
+      "name": "SSL 证书过期",
+      "patterns": [
+        "certificate has expired",
+        "证书过期",
+        "ssl expired",
+        "cert expired",
+        "net::err_cert_date_invalid"
+      ],
+      "causes": [
+        "Let's Encrypt 证书 90 天到期没续期",
+        "自签名证书没到时更换",
+        "系统时间不对（差太多导致以为过期）"
+      ],
+      "commands": [
+        "openssl x509 -in cert.pem -noout -dates - 看证书起止",
+        "echo | openssl s_client -servername x.com -connect x.com:443 2>/dev/null | openssl x509 -noout -dates",
+        "date - 看服务器时间",
+        "certbot certificates - 看 LE 证书状态"
+      ],
+      "solution": "<strong>三选一：</strong><br>1. <code>certbot renew</code> 手动续 LE 证书<br>2. <code>crontab</code> 加自动续期：<code>0 3 * * * certbot renew --quiet</code><br>3. 替换证书文件并 reload nginx/apache<br><strong>提前 30 天</strong>就应该检查！",
+      "principle": "<strong>原理：</strong>TLS 证书有起止时间，浏览器内核内置 CA 列表和过期检查，过期会显示「不安全」。",
+      "source": "《HTTPS 排错》第1章"
+    },
+    {
+      "id": "mysql_conn_fail",
+      "name": "MySQL 连接失败",
+      "patterns": [
+        "can't connect to mysql",
+        "access denied for user",
+        "mysql连接失败",
+        "1045",
+        "2003",
+        "1130",
+        "host is not allowed"
+      ],
+      "causes": [
+        "密码错（1045 Access denied）",
+        "用户限制了 host（默认 root@localhost 不能远程）",
+        "3306 端口没开（安全组）",
+        "mysqld 没启动（2003 Can't connect）",
+        "bind-address 限制（默认 127.0.0.1）"
+      ],
+      "commands": [
+        "systemctl status mysql",
+        "ss -tlnp | grep 3306 - 看监听",
+        "mysql -uroot -p - 本地测",
+        "SELECT user, host FROM mysql.user; - 看用户",
+        "tail -f /var/log/mysql/error.log"
+      ],
+      "solution": "<strong>按错误码处理：</strong><br>· <strong>1045</strong>：密码错或 host 受限，<code>ALTER USER 'app'@'%' IDENTIFIED BY 'pwd';</code> + <code>GRANT</code><br>· <strong>2003</strong>：mysqld 没启或端口未开<br>· <strong>1130</strong>：host 不允许，<code>UPDATE user SET host='%' WHERE user='app';</code><br><strong>远程访问：</strong>改 <code>bind-address = 0.0.0.0</code> + 重启",
+      "principle": "<strong>原理：</strong>MySQL 用 user@host 粒度控制谁能连。默认 root 只能 localhost，是安全设计。",
+      "source": "《MySQL 排错》第1章"
+    },
+    {
+      "id": "docker_no_space",
+      "name": "Docker 磁盘占满",
+      "patterns": [
+        "no space left on device",
+        "docker no space",
+        "docker disk full",
+        "devicemapper out of space",
+        "docker存储占满"
+      ],
+      "causes": [
+        "旧镜像、容器、卷、网络占满磁盘",
+        "Docker 数据盘单独挂载且容量小",
+        "日志未配置轮转（/var/lib/docker/containers/* 越来越大）"
+      ],
+      "commands": [
+        "docker system df - 看各类占空间",
+        "docker images - 看镜像",
+        "docker ps -a - 看所有容器",
+        "du -sh /var/lib/docker/* - 看大目录",
+        "docker system prune - 清理"
+      ],
+      "solution": "<strong>清理方案：</strong><br>1. <code>docker system prune -a</code> 一键清理（未用镜像、容器、网络）<br>2. <code>docker image prune -a</code> 只清镜像<br>3. <code>docker volume prune</code> 清未用卷<br>4. 配置 /etc/docker/daemon.json：<br><code>{\"log-driver\":\"json-file\",\"log-opts\":{\"max-size\":\"100m\"}}</code>",
+      "principle": "<strong>原理：</strong>Docker 的镜像/容器/卷都存在 /var/lib/docker/，不做日志轮转会无限增长。",
+      "source": "《Docker 排错》第1章"
+    },
+    {
+      "id": "k8s_pod_pending",
+      "name": "K8s Pod 卡 Pending",
+      "patterns": [
+        "pending",
+        "pod pending",
+        "0/1 nodes are available",
+        "pod卡住",
+        "无法调度"
+      ],
+      "causes": [
+        "集群资源不足（CPU/内存）",
+        "节点有污点（taint）但 Pod 没容忍（toleration）",
+        "节点亲和性/反亲和性不满足",
+        "PV/PVC 绑定失败",
+        "镜像拉取失败（私有仓库没配 secret）"
+      ],
+      "commands": [
+        "kubectl describe pod <pod>",
+        "kubectl get events --sort-by=.metadata.creationTimestamp",
+        "kubectl describe node <node>",
+        "kubectl get pvc - 看存储",
+        "kubectl get pods -A - 全集群看"
+      ],
+      "solution": "<strong>describe pod 必看 Events：</strong><br>1. <code>0/3 nodes are available: 3 Insufficient cpu</code> → 资源不够，加节点或调小 request<br>2. <code>3 node(s) had taint</code> → 加 toleration<br>3. <code>FailedScheduling</code> + affinity → 改 affinity 规则<br>4. <code>ImagePullBackOff</code> → 检查 imagePullSecrets",
+      "principle": "<strong>原理：</strong>Pod Pending 是调度器找不到满足所有约束（资源/亲和/污点/PV）的节点。Events 里有具体原因。",
+      "source": "《K8s 排错》第1章"
+    },
+    {
+      "id": "k8s_imagepullbackoff",
+      "name": "K8s 镜像拉取失败",
+      "patterns": [
+        "imagepullbackoff",
+        "errimagepull",
+        "failed to pull image",
+        "镜像拉取失败"
+      ],
+      "causes": [
+        "镜像名拼错（typo）",
+        "私有仓库没配 imagePullSecrets",
+        "镜像 tag 不存在（latest 被删？）",
+        "网络不通（无法访问外网镜像仓库）",
+        "Harbor 证书过期/不信任"
+      ],
+      "commands": [
+        "kubectl describe pod <pod> - 看 Events",
+        "kubectl get secret -n <ns>",
+        "docker pull <image> - 本地试拉",
+        "kubectl get events | grep -i pull",
+        "nslookup registry-1.docker.io - DNS"
+      ],
+      "solution": "<strong>按顺序：</strong><br>1. 镜像名+tag 写对了吗？<br>2. 私有仓库：<code>kubectl create secret docker-registry myreg --docker-server=... --docker-username=... --docker-password=...</code> 然后 pod 里 <code>imagePullSecrets: [myreg]</code><br>3. 自建 Harbor：<code>docker login harbor.x.com</code> 配 <code>insecure-registries</code><br>4. 实在拉不到，本地 <code>docker save</code> + <code>ctr -n k8s.io image import</code>",
+      "principle": "<strong>原理：</strong>K8s 用 containerd/CRI 拉镜像，私有仓库需鉴权。imagePullBackOff 重试到放弃。",
+      "source": "《K8s 排错》第2章"
+    },
+    {
+      "id": "k8s_crashloopbackoff",
+      "name": "K8s Pod 反复重启",
+      "patterns": [
+        "crashloopbackoff",
+        "crashloop",
+        "反复重启",
+        "pod一直重启"
+      ],
+      "causes": [
+        "应用启动报错（看日志！）",
+        "健康检查失败（livenessProbe 太严）",
+        "配置错误（环境变量/ConfigMap 缺失）",
+        "依赖服务没起来（数据库连不上）",
+        "OOM Killed（内存不够）"
+      ],
+      "commands": [
+        "kubectl logs <pod> --previous - 看上次崩溃日志",
+        "kubectl describe pod <pod> - 看 Events 和状态",
+        "kubectl logs <pod> -c <container> - 多容器看指定",
+        "kubectl get pod <pod> -o yaml - 看完整配置"
+      ],
+      "solution": "<strong>先看日志：</strong><br><code>kubectl logs <pod> --previous</code> 80% 看完就知道原因。<br>常见修复：<br>· 改 livenessProbe 阈值（先放宽到 60s）<br>· 加 resources.requests/limits（避免 OOM）<br>· 加 startupProbe 给慢启动应用<br>· 临时禁用探针：<code>kubectl edit deploy</code> 删 livenessProbe",
+      "principle": "<strong>原理：</strong>CrashLoopBackOff 是「容器退出后 K8s 不断重启」的退避状态。延迟时间指数增加：1s、2s、4s、8s...最多 5 分钟。",
+      "source": "《K8s 排错》第3章"
+    },
+    {
+      "id": "firewall_block",
+      "name": "防火墙拦截",
+      "patterns": [
+        "connection timed out",
+        "no route to host",
+        "防火墙",
+        "firewall blocked",
+        "iptables drop",
+        "被防火墙拦截"
+      ],
+      "causes": [
+        "安全组未放通（云上第一道墙）",
+        "OS 内 ufw/iptables/firewalld 拦截",
+        "运营商/企业网防火墙封了端口",
+        "VPC 网络 ACL 拦截"
+      ],
+      "commands": [
+        "控制台安全组规则检查",
+        "iptables -L -n -v - 看规则",
+        "ufw status - Ubuntu 防火墙",
+        "firewall-cmd --list-all - CentOS",
+        "nc -zv <ip> <port> - 测端口",
+        "telnet <ip> <port> - 测连通性"
+      ],
+      "solution": "<strong>云上三道墙：</strong><br>1. 安全组（最外层）：控制台放通<br>2. 主机 OS 防火墙：<code>ufw allow</code> 或 <code>firewall-cmd --add-port</code><br>3. VPC 网络 ACL（最外层）：控制台检查<br><strong>调试技巧：</strong>先临时全开（安全组 0.0.0.0/0），通了再精准收缩。",
+      "principle": "<strong>原理：</strong>流量从客户端到 ECS 经过：客户端 OS → 运营商 → 公网 → 边界网关 → 安全组 → VPC 路由 → ACL → OS 防火墙 → 进程。任何一道都会拦。",
+      "source": "《云网络排错》第1章"
+    },
+    {
+      "id": "dns_not_resolve",
+      "name": "DNS 解析失败",
+      "patterns": [
+        "name or service not known",
+        "dns resolution",
+        "解析失败",
+        "could not resolve host",
+        "temporary failure in name resolution"
+      ],
+      "causes": [
+        "DNS 服务器没配（/etc/resolv.conf 为空）",
+        "resolv.conf 里 nameserver 失效",
+        "网络本身就不通（无法连 DNS）",
+        "本机 hosts 文件里没有",
+        "DNSPod/云解析记录没配"
+      ],
+      "commands": [
+        "cat /etc/resolv.conf - 看 DNS 配置",
+        "nslookup baidu.com - 测解析",
+        "dig @8.8.8.8 baidu.com - 指定 DNS 测",
+        "ping 8.8.8.8 - 看是否通公网",
+        "systemd-resolve --status - 看 systemd-resolved 状态"
+      ],
+      "solution": "<strong>逐层排查：</strong><br>1. <code>ping 8.8.8.8</code> 看通不通公网<br>2. <code>cat /etc/resolv.conf</code> 看 nameserver<br>3. 没有的话：<code>echo 'nameserver 8.8.8.8' &gt; /etc/resolv.conf</code><br>4. systemd 系统：<code>systemctl restart systemd-resolved</code><br>5. 业务 DNS 失败：去域名服务商加 A 记录",
+      "principle": "<strong>原理：</strong>DNS 解析依赖 nameserver 53 端口。系统先查 hosts，再问配置的 nameserver。",
+      "source": "《Linux 网络排错》第2章"
+    },
+    {
+      "id": "service_restart_loop",
+      "name": "服务反复重启",
+      "patterns": [
+        "restarting too quickly",
+        "start request repeated too fast",
+        "反复重启",
+        "不断重启",
+        "service restart loop"
+      ],
+      "causes": [
+        "应用启动后秒退（看 journal 日志）",
+        "依赖服务没启（数据库/缓存）",
+        "Type=notify 类服务启动后未发 sd_notify",
+        "OOM 被杀（看 dmesg）"
+      ],
+      "commands": [
+        "systemctl status <service> - 看当前状态和最近日志",
+        "journalctl -u <service> -n 50 - 看日志",
+        "journalctl -u <service> --since '5 min ago' - 最近 5 分钟",
+        "dmesg | grep -i oom - 看 OOM",
+        "systemd-analyze blame - 看启动耗时"
+      ],
+      "solution": "<strong>先看日志：</strong><br>1. <code>journalctl -u <service> -n 100 --no-pager</code> 100 行看到底为什么退出<br>2. 修代码或配置<br>3. 临时让服务别自动重启：<code>systemctl edit <service></code> 加 <code>[Service]\nRestart=no</code><br>4. 启动慢：加 <code>RestartSec=10s</code> 和 <code>StartLimitInterval=0</code>",
+      "principle": "<strong>原理：</strong>Systemd 检测到服务短时间内多次启动会进入 failed 状态，停止继续重启。",
+      "source": "《Systemd 排错》第1章"
+    },
+    {
+      "id": "high_cpu",
+      "name": "CPU 占用过高",
+      "patterns": [
+        "cpu 100%",
+        "cpu占用高",
+        "load average",
+        "load高",
+        "系统卡顿",
+        "system slow"
+      ],
+      "causes": [
+        "某进程死循环（代码 bug）",
+        "突发流量打满（业务高峰/被刷）",
+        "加密挖矿木马入侵",
+        "数据库慢查询拖累整个系统",
+        "应用 GC 频繁（Java/Go）"
+      ],
+      "commands": [
+        "top - 实时看 CPU",
+        "htop - 更友好",
+        "ps -eo pid,ppid,cmd,%cpu --sort=-%cpu | head - 找凶手",
+        "pidstat -u 1 5 - 按秒看进程",
+        "perf top - 热点分析",
+        "cat /proc/loadavg - 系统负载"
+      ],
+      "solution": "<strong>找凶手：</strong><br>1. <code>top</code> 看 P 列（进程）<br>2. 看到 PID 后 <code>strace -p PID</code> 看在干啥<br>3. 杀进程 / 重启服务<br>4. 治本：查代码 bug、加监控告警、扩资源<br><strong>疑似挖矿：</strong><code>crontab -l</code> + <code>netstat -anpt</code> 看异常外联",
+      "principle": "<strong>原理：</strong>Linux 用 CFS 调度，CPU 100% 意味着有进程在 spin。负载均值 > CPU 核数表示有排队。",
+      "source": "《性能排错》第1章"
+    },
+    {
+      "id": "time_sync",
+      "name": "系统时间不对",
+      "patterns": [
+        "时间不对",
+        "系统时间",
+        "clock skew",
+        "time drift",
+        "ntpdate",
+        "证书时间不对"
+      ],
+      "causes": [
+        "云主机重启后没启用 NTP",
+        "时区不对（不是 UTC+8）",
+        "硬件时钟异常（少见）",
+        "容器内时区和宿主机不一致"
+      ],
+      "commands": [
+        "date - 当前时间",
+        "timedatectl - 时间状态",
+        "timedatectl list-timezones - 时区列表",
+        "ntpq -p - NTP 状态",
+        "chronyc sources - Chrony 状态"
+      ],
+      "solution": "<strong>三步修复：</strong><br>1. <code>timedatectl set-timezone Asia/Shanghai</code> 改时区<br>2. <code>timedatectl set-ntp true</code> 开 NTP<br>3. <code>systemctl restart systemd-timesyncd</code> 立即同步<br><strong>云上：</strong>多数云平台已配好内网 NTP，无需手动改。",
+      "principle": "<strong>原理：</strong>Linux 用 UTC 内核时间 + 时区显示。NTP 通过 123 端口同步，精度毫秒级。",
+      "source": "《Linux 时间管理》第1章"
+    },
+    {
+      "id": "http_500",
+      "name": "HTTP 500 内部错误",
+      "patterns": [
+        "500",
+        "internal server error",
+        "500 internal",
+        "内部错误",
+        "服务异常"
+      ],
+      "causes": [
+        "后端代码抛异常（看应用日志）",
+        "数据库连接失败/超时",
+        "权限不足（读写文件/库表）",
+        "第三方 API 调用失败",
+        "代码 bug（空指针、数组越界）"
+      ],
+      "commands": [
+        "tail -f /var/log/nginx/error.log",
+        "tail -f /var/log/app/app.log - 应用日志",
+        "journalctl -u app -n 100",
+        "curl -v http://localhost/api -v 看响应",
+        "浏览器 F12 看 Network 和 Console"
+      ],
+      "solution": "<strong>看应用日志：</strong><br>1. 找到异常堆栈<br>2. 定位出错代码<br>3. 临时：<code>systemctl restart app</code> 重启<br>4. 永久：修代码 + 加 try/catch + 加监控告警<br><strong>快速定位：</strong>开 debug 模式（开发环境）",
+      "principle": "<strong>原理：</strong>HTTP 500 是「服务端代码崩了」，区别于 502/503。100% 看后端日志。",
+      "source": "《HTTP 错误码》第2章"
+    },
+    {
+      "id": "redis_oom",
+      "name": "Redis 内存溢出",
+      "patterns": [
+        "oom command not allowed",
+        "redis out of memory",
+        "redis 内存满",
+        "maxmemory"
+      ],
+      "causes": [
+        "数据超过 maxmemory 配置",
+        "没设淘汰策略或策略不当",
+        "大 key（hash 几十万字段）",
+        "没用 TTL 清理过期数据"
+      ],
+      "commands": [
+        "redis-cli info memory - 内存详情",
+        "redis-cli dbsize - key 数量",
+        "redis-cli --bigkeys - 找大 key",
+        "redis-cli config get maxmemory - 配置",
+        "redis-cli config get maxmemory-policy - 淘汰策略"
+      ],
+      "solution": "<strong>应急：</strong><code>redis-cli flushdb</code> 清库（仅 dev ！）<br><strong>根治：</strong><br>1. 配 maxmemory 和淘汰策略：<code>maxmemory-policy allkeys-lru</code><br>2. 拆大 key、用 Hash 分桶<br>3. 加监控 + 告警（used_memory > 80%）<br>4. 集群扩展（不靠单实例）",
+      "principle": "<strong>原理：</strong>Redis 默认不限内存，写满会 OOM 拒绝写入。LRU/LFU 等策略在内存满时淘汰旧数据。",
+      "source": "《Redis 运维》第2章"
+    },
+    {
+      "id": "git_push_fail",
+      "name": "Git 推送失败",
+      "patterns": [
+        "git push failed",
+        "permission denied (publickey)",
+        "could not read username",
+        "git 推送失败",
+        "authentication failed"
+      ],
+      "causes": [
+        "没配 SSH 公钥到 GitHub/GitLab",
+        "HTTPS 协议但没配 token（旧密码已停用）",
+        "仓库地址错（用了 HTTP 改 SSH）",
+        "网络问题（代理/VPN）"
+      ],
+      "commands": [
+        "ssh -T git@github.com - 测 SSH 联通",
+        "git remote -v - 看仓库地址",
+        "cat ~/.ssh/id_rsa.pub - 看本地公钥",
+        "git config --global user.email - 看配置"
+      ],
+      "solution": "<strong>SSH 方式（推荐）：</strong><br>1. <code>ssh-keygen -t rsa -b 4096</code> 生成密钥<br>2. 把 <code>~/.ssh/id_rsa.pub</code> 内容贴到 GitHub Settings → SSH keys<br>3. <code>ssh -T git@github.com</code> 测试<br><strong>HTTPS 方式：</strong>用 Personal Access Token 代替密码",
+      "principle": "<strong>原理：</strong>Git 推送用 SSH（22）或 HTTPS（443）。SSH 用密钥对鉴权，HTTPS 用用户名密码/token。",
+      "source": "《Git 排错》第1章"
+    },
+    {
+      "id": "config_syntax_err",
+      "name": "配置文件语法错误",
+      "patterns": [
+        "unknown directive",
+        "syntax error",
+        "configuration error",
+        "unexpected end of file",
+        "配置文件错误",
+        "语法错误"
+      ],
+      "causes": [
+        "少了分号/花括号",
+        "多写了标点",
+        "中文符号（半角 vs 全角）",
+        "路径含空格没引号"
+      ],
+      "commands": [
+        "nginx -t - 测 nginx 配置",
+        "apachectl configtest - 测 apache",
+        "python -c 'import yaml; yaml.safe_load(open(\"f.yml\"))' - 测 YAML",
+        "json.tool - 测 JSON",
+        "sshd -t - 测 SSH 配置"
+      ],
+      "solution": "<strong>三步：</strong><br>1. <code>nginx -t</code> 等命令直接给出错行号<br>2. 去改对应行<br>3. <strong>改之前</strong>先 <code>cp xxx.conf xxx.conf.bak</code> 备份！<br><strong>预防：</strong>用 IDE 编辑（语法高亮），改后必测。",
+      "principle": "<strong>原理：</strong>大部分服务都有 -t 参数（test）模式，能在不启动的情况下校验配置文件。",
+      "source": "《配置文件排错》第1章"
+    },
+    {
+      "id": "yum_apt_fail",
+      "name": "包管理器失败",
+      "patterns": [
+        "could not resolve host",
+        "unmet dependencies",
+        "package not found",
+        "apt 失败",
+        "yum 失败",
+        "404 not found"
+      ],
+      "causes": [
+        "DNS 解析失败（mirror 域名）",
+        "软件源失效（EOL 系统）",
+        "公网网络问题（连不上镜像）",
+        "依赖冲突（缺底层库）",
+        "签名过期（GPG key 失效）"
+      ],
+      "commands": [
+        "ping mirrors.aliyun.com - 测镜像源",
+        "cat /etc/apt/sources.list - 看源配置",
+        "apt update - 刷新源",
+        "apt-cache search <name> - 找包",
+        "yum repolist - 源状态"
+      ],
+      "solution": "<strong>国内云主机：</strong>换源！<br>· Ubuntu: <code>sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list</code><br>· CentOS: <code>yum-config-manager --add-repo https://mirrors.aliyun.com/...</code><br><strong>依赖冲突：</strong><code>apt install -f</code> 修复依赖",
+      "principle": "<strong>原理：</strong>apt/yum 通过 HTTP 访问源列表，下载包索引后比对系统已装包，找到候选版本安装。",
+      "source": "《Linux 包管理》第2章"
+    },
+    {
+      "id": "yum_apt_fail2",
+      "name": "依赖冲突",
+      "patterns": [
+        "unmet dependencies",
+        "conflicts with",
+        "依赖冲突",
+        "breaks dependency",
+        "held broken packages"
+      ],
+      "causes": [
+        "手动装包覆盖了源版本",
+        "添加了第三方源（含旧版）",
+        "跨大版本升级（Ubuntu 18→22）",
+        "应用装了自己编译的 lib"
+      ],
+      "commands": [
+        "apt-mark showhold - 看哪些包被锁",
+        "apt -f install - 修复",
+        "apt full-upgrade - 大版本升级",
+        "yum check - 查冲突",
+        "rpm -Va - 校验所有包"
+      ],
+      "solution": "<strong>思路：</strong><br>1. <code>apt -f install</code> 尝试自动修复<br>2. 移除冲突包：<code>apt remove &lt;冲突包&gt;</code><br>3. 用 aptitude 替代 apt（更智能解决依赖）<br>4. 重装干净的源版本：<code>apt install &lt;包&gt; --reinstall</code><br><strong>终极方案：</strong>重装系统（学习环境随便干）",
+      "principle": "<strong>原理：</strong>包管理器维护包之间的依赖图。冲突意味着新包的依赖和现有包不兼容。",
+      "source": "《Linux 包管理》第3章"
+    }
+  ],
+  "fallback": {
+    "title": "未匹配到已知错误特征",
+    "steps": [
+      "第一步：确认现象——是服务起不来、连不上，还是报错信息看不懂？",
+      "第二步：看状态——systemctl status <服务名>，关注 Active 行",
+      "第三步：看日志——journalctl -u <服务名> -n 20，错误原因基本都在最后几行",
+      "第四步：把关键报错行复制出来，对照排错手册的特征表"
+    ],
+    "tip": "如果按上述步骤仍无法定位，请把完整的报错信息（包括 systemctl status 和 journalctl 的输出）发给指导教师。"
+  },
+  "version": "2.0",
+  "total": 30
+}

@@ -1,0 +1,44 @@
+# ============================================================
+# 云智实训助手 · Python 依赖清单
+# ============================================================
+# 安装命令（推荐使用清华镜像，速度快）：
+#   python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+# ============================================================
+# 说明：
+#   - [必装]   = 核心功能必需，缺失则一键运行.bat 会自动 pip install
+#   - [可选]   = 装上后才有的功能；缺失不影响核心功能
+# ============================================================
+
+# ========== 后端基础 [必装]（约 5MB）==========
+flask>=2.3
+Pillow>=9.0
+beautifulsoup4>=4.12
+matplotlib>=3.6
+
+# ========== OCR 截图识别 [可选] ==========
+# 仅使用 /api/ocr 时需要；未安装时排错诊断仍支持手动输入文字
+# 另外需要安装 Tesseract 程序本体（约 60MB）:
+#   Windows: https://github.com/UB-Mannheim/tesseract/wiki
+#   或: winget install tesseract-ocr.tesseract
+# 一键补装脚本: tools/安装OCR依赖.bat
+pytesseract>=0.3.10
+
+# ========== 语音识别 ASR [可选]（库约 3MB + 中文模型约 42MB）==========
+# 仅使用智能问答页「麦克风语音输入」时需要；未安装时键盘输入完全不受影响
+# 识别引擎 Vosk，纯本地离线：音频只在 127.0.0.1 处理，不上传任何外部服务器
+# 一键安装脚本: tools/安装语音识别.bat（自动装库 + 下载中文模型）
+vosk>=0.3.45
+
+# ========== Stable Diffusion 画图 [可选]（约 2-3GB）==========
+# 仅使用「插画」类型出图时需要；未安装时拓扑/架构图 (matplotlib) 仍正常
+# 国内源优先（ModelScope 阿里云 CDN）→ hf-mirror → huggingface.co
+# 无 NVIDIA 显卡的机器装 CPU 版即可（pip 默认装 CPU 版）
+# 一键补装脚本: tools/安装画图依赖.bat
+modelscope>=1.9       # 阿里云 ModelScope SDK，国内最稳的 SD 模型源
+torch>=2.0
+torchvision>=0.15
+diffusers>=0.25
+transformers>=4.30
+accelerate>=0.20
+safetensors>=0.3
+huggingface_hub>=0.16

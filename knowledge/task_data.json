@@ -1,0 +1,819 @@
+{
+  "_说明": "云智实训助手 - 任务引导知识库。每个任务含完整步骤、预期结果、思考题。",
+  "tasks": [
+    {
+      "id": "create_vm",
+      "name": "云主机创建与网络配置",
+      "keywords": [
+        "云主机",
+        "创建云主机",
+        "创建实例",
+        "新建实例",
+        "ecs",
+        "虚拟机创建",
+        "实验一",
+        "任务书",
+        "开通云主机"
+      ],
+      "goal": "掌握云主机的完整创建流程；理解 VPC、子网、安全组三个核心概念及其关系；学会合理规划网络参数。",
+      "env": "云平台控制台 · 华北1 / 可用区 A · Ubuntu 22.04",
+      "steps": [
+        {
+          "title": "进入创建页面",
+          "detail": "登录云平台控制台 → 计算 → 云主机 → 点击「创建实例」",
+          "expect": "进入创建向导页面，看到配置项列表",
+          "tip": "先确认左上角地域是否为你所在的地域，选错地域后续无法直接更换。"
+        },
+        {
+          "title": "基础配置",
+          "detail": "选择地域「华北1」、可用区「A」，实例规格选择 2核4G",
+          "expect": "页面右侧配置摘要显示所选规格与费用",
+          "tip": "实训阶段选最小规格即可，重点是流程而不是性能。"
+        },
+        {
+          "title": "镜像选择",
+          "detail": "在公共镜像中选择 Ubuntu 22.04 LTS",
+          "expect": "镜像栏显示 Ubuntu 22.04 LTS",
+          "tip": "LTS 表示长期支持版本，稳定性更好，生产环境优先选 LTS。"
+        },
+        {
+          "title": "网络配置（本任务重点）",
+          "detail": "VPC 选择 vpc-prod-01（10.0.0.0/16）；子网选择 subnet-web-01（10.0.1.0/24）；安全组放通 22、80、443 端口；公网带宽按需设置",
+          "expect": "网络参数填写完整，且子网网段在 VPC 网段范围内",
+          "tip": "注意：子网网段必须是 VPC CIDR 的子集，10.0.1.0/24 属于 10.0.0.0/16，所以合法。如果填成 192.168.1.0/24 就会报错。"
+        },
+        {
+          "title": "系统配置",
+          "detail": "设置登录方式（密码或密钥对）与主机名，例如 web-server-01",
+          "expect": "密码强度校验通过，主机名已填写",
+          "tip": "主机名建议用「用途-序号」命名，方便日后在多台机器中快速识别。"
+        },
+        {
+          "title": "确认下单",
+          "detail": "核对右侧配置摘要：地域、规格、镜像、网络、安全组，确认无误后提交创建",
+          "expect": "实例列表出现新云主机，状态由「创建中」变为「运行中」",
+          "tip": "养成提交前核对配置摘要的习惯，这是工程化思维的第一步。"
+        }
+      ],
+      "acceptance": [
+        "云主机创建成功，状态为「运行中」",
+        "能通过 SSH 远程登录（安全组已放通 22 端口）",
+        "安全组端口配置正确（22/80/443）",
+        "能口头描述 VPC、子网、安全组三者的关系"
+      ],
+      "questions": [
+        "为什么子网网段必须在 VPC CIDR 范围内？",
+        "安全组默认是放通还是拒绝流量？为什么？",
+        "如何为不同用途的资源（Web 层、数据库层）规划子网？"
+      ],
+      "source": "《云计算实训任务书》实验一"
+    },
+    {
+      "id": "deploy_nginx",
+      "name": "Web 服务部署（nginx）",
+      "keywords": [
+        "部署",
+        "nginx",
+        "web服务",
+        "web 部署",
+        "网站部署",
+        "安装nginx",
+        "部署nginx",
+        "启动服务",
+        "httpd"
+      ],
+      "goal": "掌握在云主机上部署 Web 服务的标准流程；理解「安装 → 启动 → 验证」三段式；学会使用 systemctl 管理服务。",
+      "env": "云主机（Ubuntu 22.04）· 已放通 80 端口 · root 权限",
+      "steps": [
+        {
+          "title": "远程登录云主机",
+          "detail": "ssh root@<你的公网IP>，输入密码登录",
+          "expect": "命令行提示符变为 root@主机名:~#",
+          "tip": "连不上先检查三件事：安全组是否放通 22、云主机是否运行中、本地网络是否可达。"
+        },
+        {
+          "title": "更新软件源并安装 nginx",
+          "detail": "sudo apt update<br>sudo apt install -y nginx",
+          "expect": "命令行无报错，出现 nginx 安装完成提示",
+          "tip": "apt update 是刷新软件源索引，不装东西；apt install 才是真正安装。跳过 update 可能装到旧版本。"
+        },
+        {
+          "title": "启动服务并设置开机自启",
+          "detail": "sudo systemctl start nginx<br>sudo systemctl enable nginx",
+          "expect": "start 无报错；enable 提示 Created symlink 表示成功",
+          "tip": "start 是现在启动，enable 是开机自动启动。两个都要做，否则重启机器后服务就没了。"
+        },
+        {
+          "title": "检查服务状态",
+          "detail": "sudo systemctl status nginx",
+          "expect": "看到绿色 active (running) 才算启动成功",
+          "tip": "如果是 failed，用 journalctl -u nginx -n 20 看日志，最常见的两个原因是端口被占用、配置文件语法错误。"
+        },
+        {
+          "title": "放通安全组 80 端口",
+          "detail": "在控制台安全组中添加入站规则：协议 TCP，端口 80，来源 0.0.0.0/0",
+          "expect": "安全组规则列表中出现 80 端口放行规则",
+          "tip": "很多同学服务起来了却访问不了，问题就出在这一步——云主机的安全组和系统防火墙是两道独立的门。"
+        },
+        {
+          "title": "验证访问",
+          "detail": "curl http://localhost<br>或用浏览器访问 http://<你的公网IP>",
+          "expect": "返回 nginx 欢迎页 HTML，或浏览器显示 Welcome to nginx",
+          "tip": "curl 通但外网不通 → 查安全组；curl 都不通 → 查服务状态和端口监听。"
+        }
+      ],
+      "acceptance": [
+        "systemctl status nginx 显示 active (running)",
+        "浏览器能打开 nginx 欢迎页",
+        "服务已设置开机自启（systemctl is-enabled nginx 返回 enabled）",
+        "能说出「服务起不来」时的排查顺序"
+      ],
+      "questions": [
+        "start 和 enable 有什么区别？只执行 start 会怎样？",
+        "为什么服务启动了但外网访问不了？可能是哪几道关卡没过？",
+        "systemctl status 显示 failed 时，下一步该做什么？"
+      ],
+      "source": "《云计算服务部署指导书》第2、4章"
+    },
+    {
+      "id": "deploy_mysql",
+      "name": "MySQL 数据库部署与基础使用",
+      "keywords": [
+        "mysql",
+        "数据库",
+        "数据库部署",
+        "装mysql",
+        "mysql安装",
+        "实验三",
+        "任务三"
+      ],
+      "goal": "掌握 Linux 下 MySQL 的安装、初始化、安全加固；学会基本 SQL 和用户授权。",
+      "env": "云主机（Ubuntu 22.04）· 1 核 2G · 安全组已放通 22",
+      "steps": [
+        {
+          "title": "更新软件源",
+          "detail": "apt update && apt upgrade -y",
+          "expect": "显示若干包更新完成",
+          "tip": "第一次换源要慢，耐心等"
+        },
+        {
+          "title": "安装 MySQL Server",
+          "detail": "apt install mysql-server -y",
+          "expect": "完成后 MySQL 自动启动",
+          "tip": "Ubuntu 22 默认装 MySQL 8.0"
+        },
+        {
+          "title": "查看初始密码",
+          "detail": "sudo cat /etc/mysql/debian.cnf 中查看 user/password",
+          "expect": "拿到 debian-sys-maint 用户和密码",
+          "tip": "Debian 系列特有，初始 root 不让密码登录"
+        },
+        {
+          "title": "登录并修改 root 密码",
+          "detail": "mysql -u debian-sys-maint -p → ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'YourStrongPass!';",
+          "expect": "新密码生效",
+          "tip": "密码必须含大小写数字特殊字符，长度 > 8"
+        },
+        {
+          "title": "创建数据库和用户",
+          "detail": "CREATE DATABASE school; CREATE USER 'app'@'localhost' IDENTIFIED BY 'AppPass123'; GRANT ALL ON school.* TO 'app'@'localhost';",
+          "expect": "用户 app 可登录并只能操作 school 库",
+          "tip": "最小权限原则，root 平时不用"
+        },
+        {
+          "title": "验证远程登录",
+          "detail": "mysql -uapp -pAppPass123 school → SHOW TABLES;",
+          "expect": "成功进入 school 库",
+          "tip": "如失败，看 /var/log/mysql/error.log"
+        }
+      ],
+      "acceptance": [
+        "能成功用 root 登录本机 MySQL",
+        "创建 school 库 + app 用户，且 app 用户仅能访问 school 库",
+        "执行 INSERT/CREATE/SELECT 语句能正常运行"
+      ],
+      "questions": [
+        "为什么不能直接用 root 远程登录？怎么开启？",
+        "GRANT 之后还要 FLUSH PRIVILEGES 吗？为什么？",
+        "如果忘了 root 密码，怎么重置？"
+      ],
+      "source": "《MySQL 实训指导书》第1章"
+    },
+    {
+      "id": "deploy_nginx_advanced",
+      "name": "Nginx 反向代理 + HTTPS 部署",
+      "keywords": [
+        "反向代理",
+        "nginx代理",
+        "nginx https",
+        "https配置",
+        "ssl证书",
+        "代理"
+      ],
+      "goal": "掌握 nginx 反向代理后端应用、配置 HTTPS 证书、实现 HTTP 自动跳转 HTTPS。",
+      "env": "云主机 · Ubuntu 22.04 · 已有域名（如 school.example.com）",
+      "steps": [
+        {
+          "title": "准备后端应用",
+          "detail": "写个简单 Flask app，监听 127.0.0.1:8080",
+          "expect": "curl http://127.0.0.1:8080 返回 hello",
+          "tip": "后端只监听内网，不暴露公网，更安全"
+        },
+        {
+          "title": "安装 nginx",
+          "detail": "apt install nginx -y",
+          "expect": "systemctl status nginx 看到 active",
+          "tip": "装完默认站点就在 /var/www/html"
+        },
+        {
+          "title": "写反向代理配置",
+          "detail": "在 /etc/nginx/conf.d/ 创建 app.conf，写 proxy_pass http://127.0.0.1:8080; 等",
+          "expect": "nginx -t 通过",
+          "tip": "记得加 proxy_set_header Host $host; 转发真实域名"
+        },
+        {
+          "title": "申请免费证书",
+          "detail": "snap install certbot --classic → certbot --nginx -d school.example.com",
+          "expect": "自动生成证书并配置 nginx",
+          "tip": "Let's Encrypt 证书 90 天，需配置自动续期"
+        },
+        {
+          "title": "配置 HTTP 跳转 HTTPS",
+          "detail": "在 80 端口的 server 块加 return 301 https://$host$request_uri;",
+          "expect": "浏览器访问 http:// 自动跳 https",
+          "tip": "301 永久重定向，对 SEO 友好"
+        },
+        {
+          "title": "测试和监控",
+          "detail": "访问 https://school.example.com 看证书、查看 /var/log/nginx/access.log",
+          "expect": "页面正常，日志有访问记录",
+          "tip": "用 ss -tnp | grep :443 看 nginx 是否监听"
+        }
+      ],
+      "acceptance": [
+        "http 自动 301 跳转到 https",
+        "浏览器显示安全锁",
+        "后端 Flask 日志能看到真实客户端 IP（不是 127.0.0.1）"
+      ],
+      "questions": [
+        "为什么要反向代理？直接暴露后端不行吗？",
+        "proxy_set_header X-Real-IP $remote_addr 有什么作用？",
+        "Let's Encrypt 证书 90 天过期怎么办？"
+      ],
+      "source": "《Nginx 进阶》第2章"
+    },
+    {
+      "id": "docker_first_app",
+      "name": "Docker 部署第一个 Web 应用",
+      "keywords": [
+        "docker",
+        "容器化",
+        "dockerfile",
+        "docker部署",
+        "实验四",
+        "任务四"
+      ],
+      "goal": "理解 Docker 三大核心概念（镜像/容器/仓库），掌握 Dockerfile 编写与镜像构建。",
+      "env": "云主机 · Ubuntu 22.04 · Docker 25+",
+      "steps": [
+        {
+          "title": "安装 Docker",
+          "detail": "apt install docker.io -y && systemctl enable --now docker && docker --version",
+          "expect": "显示 Docker version 25.x",
+          "tip": "国内服务器可配镜像加速器：/etc/docker/daemon.json"
+        },
+        {
+          "title": "运行 hello-world",
+          "detail": "docker run hello-world",
+          "expect": "看到 'Hello from Docker!' 消息",
+          "tip": "会自动从 Docker Hub 拉镜像"
+        },
+        {
+          "title": "写 Python Flask 应用",
+          "detail": "app.py 监听 0.0.0.0:5000，requirements.txt 列依赖",
+          "expect": "本地 python app.py 可访问 5000 端口",
+          "tip": "用 Flask 而非 Django，更轻量"
+        },
+        {
+          "title": "写 Dockerfile",
+          "detail": "FROM python:3.11-slim → WORKDIR /app → COPY . . → RUN pip install → EXPOSE 5000 → CMD python app.py",
+          "expect": "语法无误",
+          "tip": "用 slim 镜像，体积只有 ~150MB"
+        },
+        {
+          "title": "构建镜像",
+          "detail": "docker build -t myapp:1.0 .",
+          "expect": "看到 'Successfully tagged myapp:1.0'",
+          "tip": "每行 RUN 会生成一层，能合并就合并"
+        },
+        {
+          "title": "运行容器",
+          "detail": "docker run -d -p 5000:5000 --name myapp myapp:1.0 && docker ps",
+          "expect": "看到容器状态为 Up",
+          "tip": "-d 后台运行，-p 端口映射"
+        },
+        {
+          "title": "验证和清理",
+          "detail": "curl localhost:5000 看输出，docker stop myapp && docker rm myapp",
+          "expect": "正常响应、容器已停止",
+          "tip": "用 docker logs myapp 看日志排查问题"
+        }
+      ],
+      "acceptance": [
+        "能独立编写 Dockerfile 构建镜像",
+        "理解镜像层缓存（修改一行 rebuild 速度很快）",
+        "能用 docker ps / logs / stop / rm 管理容器"
+      ],
+      "questions": [
+        "为什么用 python:3.11-slim 而不是 ubuntu:22.04？",
+        "容器里应用为什么会自动停止？",
+        "数据怎么持久化？重启容器数据会丢吗？"
+      ],
+      "source": "《Docker 实训》第1章"
+    },
+    {
+      "id": "docker_compose_stack",
+      "name": "Docker Compose 部署 Web+DB 全栈应用",
+      "keywords": [
+        "compose",
+        "docker compose",
+        "全栈",
+        "多容器",
+        "compose部署"
+      ],
+      "goal": "掌握 Docker Compose 编排多容器应用，理解服务依赖、网络、数据卷。",
+      "env": "云主机 · Docker 25+ · Docker Compose v2",
+      "steps": [
+        {
+          "title": "确认 Compose 版本",
+          "detail": "docker compose version",
+          "expect": "v2.x 即可（v1 已废弃）",
+          "tip": "新版 Compose 是 docker compose（带空格），不是 docker-compose"
+        },
+        {
+          "title": "规划目录结构",
+          "detail": "项目根目录：docker-compose.yml + app/ + db/init.sql",
+          "expect": "结构清晰",
+          "tip": "init.sql 自动初始化数据库"
+        },
+        {
+          "title": "写 docker-compose.yml",
+          "detail": "定义 web 服务（build: ./app）+ db 服务（image: mysql:8）+ 网络 + 卷",
+          "expect": "YAML 语法正确",
+          "tip": "depends_on 只控制启动顺序，不代表 web 等待 db 就绪"
+        },
+        {
+          "title": "写健康检查",
+          "detail": "db 服务加 healthcheck，web 加 depends_on: db: condition: service_healthy",
+          "expect": "web 启动时 db 已就绪",
+          "tip": "避免应用启动时数据库还没准备好"
+        },
+        {
+          "title": "启动并验证",
+          "detail": "docker compose up -d && docker compose ps && docker compose logs -f",
+          "expect": "所有服务 healthy",
+          "tip": "logs -f 实时跟踪，Ctrl+C 退出"
+        },
+        {
+          "title": "数据持久化验证",
+          "detail": "在 app 写一条数据，docker compose down -v → up -d，看数据是否还在",
+          "expect": "不用 -v 删卷时数据保留",
+          "tip": "down -v 会同时删卷，生产慎用"
+        }
+      ],
+      "acceptance": [
+        "能独立编排 3+ 服务的 Compose 项目",
+        "理解 volumes 数据持久化、networks 容器互通",
+        "掌握 env_file 注入环境变量"
+      ],
+      "questions": [
+        "depends_on 真的能保证服务就绪吗？",
+        "docker compose down -v 会发生什么？生产能用吗？",
+        "如何把多 Compose 项目共享同一个网络？"
+      ],
+      "source": "《Docker 实战》第2章"
+    },
+    {
+      "id": "slb_ha_web",
+      "name": "负载均衡 + 多 ECS 高可用部署",
+      "keywords": [
+        "负载均衡",
+        "高可用",
+        "slb",
+        "多服务器",
+        "实验五"
+      ],
+      "goal": "通过 SLB + 多台 ECS 实现 Web 服务的高可用，验证单点故障自动恢复。",
+      "env": "至少 2 台云主机（不同可用区更佳）· SLB 服务",
+      "steps": [
+        {
+          "title": "创建两台 ECS",
+          "detail": "在两个可用区各开一台，配置相同 Web 环境",
+          "expect": "两台都装好 nginx/apache",
+          "tip": "可用区 A 和 C 跨机架，容灾性更好"
+        },
+        {
+          "title": "用自定义镜像批量部署",
+          "detail": "在第一台装好环境后，制作为自定义镜像，创建实例时选此镜像",
+          "expect": "新机器启动即有相同环境",
+          "tip": "大幅提升批量部署效率"
+        },
+        {
+          "title": "不同机器改不同标识",
+          "detail": "echo '<h1>Server 1</h1>' > /var/www/html/index.html（第二台写 Server 2）",
+          "expect": "分别访问两台公网 IP 看到不同页面",
+          "tip": "这样才能验证负载均衡效果"
+        },
+        {
+          "title": "创建 SLB 实例",
+          "detail": "控制台 → 负载均衡 → 创建 → 选 4 层 TCP 监听 80 → 后端服务器组添加两台 ECS → 端口 80",
+          "expect": "健康检查 2 台都正常",
+          "tip": "健康检查路径 / ，间隔 5 秒"
+        },
+        {
+          "title": "验证轮询",
+          "detail": "浏览器访问 SLB 公网 IP（绑定 EIP），多次刷新",
+          "expect": "轮流显示 Server 1 / Server 2",
+          "tip": "默认是加权轮询算法"
+        },
+        {
+          "title": "故障演练",
+          "detail": "手动 systemctl stop nginx 停掉其中一台",
+          "expect": "SLB 几十秒内自动剔除它，访问仍正常（只显示另一台）",
+          "tip": "重启后 SLB 自动加回去"
+        },
+        {
+          "title": "恢复验证",
+          "detail": "systemctl start nginx 恢复",
+          "expect": "刷新几秒后又看到两台轮流",
+          "tip": "这就是高可用的核心：故障自愈"
+        }
+      ],
+      "acceptance": [
+        "能独立完成 SLB + 多后端的配置",
+        "通过故障演练证明单点故障不影响整体",
+        "理解健康检查、权重、会话保持等参数"
+      ],
+      "questions": [
+        "为什么 SLB 本身不算单点故障？",
+        "会话保持（Session 保持）怎么配置？什么时候需要？",
+        "权重 100 和 50 的机器，流量分配比例是多少？"
+      ],
+      "source": "《云计算高可用》第2章"
+    },
+    {
+      "id": "oss_static_site",
+      "name": "对象存储 + CDN 部署静态网站",
+      "keywords": [
+        "oss",
+        "静态网站",
+        "对象存储",
+        "cdn",
+        "静态托管"
+      ],
+      "goal": "把静态网站（HTML/CSS/JS）放到对象存储，配合 CDN 实现高并发、低成本。",
+      "env": "对象存储 OSS · CDN 服务 · 已注册域名",
+      "steps": [
+        {
+          "title": "创建 OSS Bucket",
+          "detail": "控制台 → OSS → 创建 Bucket → 名称全局唯一 → 选地域 → 读写权限选「公共读」",
+          "expect": "Bucket 创建成功",
+          "tip": "静态网站用公共读即可，私密文件用私有"
+        },
+        {
+          "title": "上传文件",
+          "detail": "ossutil cp -r ./dist/ oss://my-site/ 或控制台拖拽",
+          "expect": "文件列表显示已上传",
+          "tip": "目录结构保留很重要"
+        },
+        {
+          "title": "开启静态网站托管",
+          "detail": "Bucket 设置 → 静态页面 → 默认首页 index.html、默认 404 → 404.html",
+          "expect": "访问 OSS 自带域名能打开网站",
+          "tip": "OSS 的「静态网站托管」= 免费 web server"
+        },
+        {
+          "title": "绑定自定义域名",
+          "detail": "域名管理 → 绑定域名 → 走 CDN 加速域名",
+          "expect": "提示去 DNS 配 CNAME",
+          "tip": "必须先在 CDN 加这个域名才能绑定"
+        },
+        {
+          "title": "配置 CDN",
+          "detail": "CDN 控制台 → 加域名 → 源站类型 OSS → 选刚才的 Bucket → 缓存规则（HTML 0分钟，图片 30天）",
+          "expect": "CNAME 解析提示出现",
+          "tip": "动静分离：静态走 CDN，动态走 SLB"
+        },
+        {
+          "title": "DNS 配 CNAME",
+          "detail": "在域名 DNS 服务商加一条 www CNAME 指向 CDN 给的 xxx.cdn.com",
+          "expect": "DNS 解析生效（TTL 默认 10 分钟）",
+          "tip": "可本地用 nslookup / dig 验证"
+        },
+        {
+          "title": "配置 HTTPS",
+          "detail": "CDN → 域名管理 → HTTPS 配置 → 选证书（可上传或申请免费）",
+          "expect": "https 可正常访问",
+          "tip": "证书可申请免费 Let's Encrypt"
+        },
+        {
+          "title": "验证性能",
+          "detail": "用不同地区 ping / curl 看延迟，对比不用 CDN 时的速度",
+          "expect": "延迟显著降低",
+          "tip": "Chrome DevTools 看 TTFB"
+        }
+      ],
+      "acceptance": [
+        "理解对象存储和 CDN 的关系（OSS 是源、CDN 是缓存）",
+        "能独立完成从 Bucket 到 CDN 加速的完整流程",
+        "会用缓存规则控制不同文件的过期时间"
+      ],
+      "questions": [
+        "OSS 直连和走 CDN 有什么区别？",
+        "缓存命中率怎么查？怎么优化？",
+        "如何防止 OSS 流量被恶意刷？"
+      ],
+      "source": "《OSS + CDN 实战》第1章"
+    },
+    {
+      "id": "monitor_alert",
+      "name": "云监控配置与告警通知",
+      "keywords": [
+        "监控",
+        "告警",
+        "云监控",
+        "cpu告警",
+        "异常通知"
+      ],
+      "goal": "为云主机配置 CPU/内存/磁盘告警，告警通过短信/邮件/钉钉/微信推送。",
+      "env": "至少 1 台云主机 · 云监控服务",
+      "steps": [
+        {
+          "title": "开通云监控",
+          "detail": "控制台 → 云监控 → 默认免费开通",
+          "expect": "看到所有 ECS 列表和默认监控项",
+          "tip": "基础指标免费，自定义指标可能收费"
+        },
+        {
+          "title": "查看实时指标",
+          "detail": "进入某台 ECS 详情，看 CPU/内存/网络/磁盘图表",
+          "expect": "显示最近 1 小时曲线",
+          "tip": "默认 1 分钟粒度，最长查 1 个月"
+        },
+        {
+          "title": "创建告警规则",
+          "detail": "告警管理 → 创建告警规则 → 选 ECS → 指标 CPU 使用率 → 阈值 > 80% 持续 5 分钟 → 通知方式短信+邮件",
+          "expect": "规则创建成功",
+          "tip": "阈值要合理，避免狼来了"
+        },
+        {
+          "title": "测试告警",
+          "detail": "SSH 进 ECS 跑 yes > /dev/null & 制造 CPU 100%",
+          "expect": "5 分钟后收到告警短信/邮件",
+          "tip": "测试完记得 kill 进程"
+        },
+        {
+          "title": "配置钉钉/企业微信机器人",
+          "detail": "群设置 → 智能群助手 → 添加机器人 → 复制 Webhook",
+          "expect": "拿到 Webhook URL",
+          "tip": "Webhook 需妥善保管"
+        },
+        {
+          "title": "对接自定义通知",
+          "detail": "告警服务 → 通知方式 →  webhook → 填 URL（带加签密钥）",
+          "expect": "告警触发时钉钉群收到消息",
+          "tip": "用加签防 URL 泄露被刷"
+        },
+        {
+          "title": "清理与维护",
+          "detail": "kill 制造 CPU 的进程，确认告警恢复通知",
+          "expect": "收到恢复通知",
+          "tip": "做好告警闭环：触发→处理→恢复"
+        }
+      ],
+      "acceptance": [
+        "能独立配置告警规则（含阈值/通知/恢复通知）",
+        "能将监控接入企业微信/钉钉",
+        "理解告警分级和静默期"
+      ],
+      "questions": [
+        "告警阈值怎么定才合理？",
+        "为什么告警收不到？常见的排查方向？",
+        "什么是「告警疲劳」？如何避免？"
+      ],
+      "source": "《云监控实战》第1章"
+    },
+    {
+      "id": "db_backup_recover",
+      "name": "MySQL 数据备份与恢复演练",
+      "keywords": [
+        "备份",
+        "mysql备份",
+        "数据恢复",
+        "mysqldump",
+        "binlog"
+      ],
+      "goal": "掌握 mysqldump 全量备份 + binlog 增量恢复，能在数据丢失时找回数据。",
+      "env": "云主机 · MySQL 8 · 有 school 库业务数据",
+      "steps": [
+        {
+          "title": "准备测试数据",
+          "detail": "在 school 库建 students 表，插入几条记录",
+          "expect": "SELECT * FROM students 有数据",
+          "tip": "用真实场景的数据更接近实战"
+        },
+        {
+          "title": "确认 binlog 已开启",
+          "detail": "SHOW VARIABLES LIKE 'log_bin'; 应为 ON",
+          "expect": "ON 表示开启",
+          "tip": "默认就是 ON，但 MySQL 8 docker 镜像有时关闭"
+        },
+        {
+          "title": "全量备份",
+          "detail": "mysqldump -uroot -p --single-transaction --master-data=2 school > /backup/school_full.sql",
+          "expect": "生成 SQL 文件，体积与数据量成正比",
+          "tip": "--master-data=2 会记录备份时的 binlog 位点"
+        },
+        {
+          "title": "模拟数据写入",
+          "detail": "INSERT INTO students ... 多加几条记录",
+          "expect": "新数据进入",
+          "tip": "模拟日常业务写入"
+        },
+        {
+          "title": "模拟数据丢失",
+          "detail": "DROP TABLE students; -- 灾难！",
+          "expect": "表没了",
+          "tip": "生产环境千万别真做，先快照备份"
+        },
+        {
+          "title": "全量恢复",
+          "detail": "mysql -uroot -p school < /backup/school_full.sql",
+          "expect": "students 表恢复，但只有备份时刻的数据",
+          "tip": "全量恢复是基础，但只能恢复到备份点"
+        },
+        {
+          "title": "增量恢复（基于 binlog）",
+          "detail": "mysqlbinlog --start-position=xxx /var/lib/mysql/binlog.000001 | mysql -uroot -p",
+          "expect": "备份之后写入的新数据也找回来了",
+          "tip": "位点从 --master-data 里查"
+        },
+        {
+          "title": "定时备份脚本",
+          "detail": "写个 shell 脚本，结合 crontab 每天 2 点全量备份 + 保留 7 天",
+          "expect": "crontab -l 看到规则",
+          "tip": "备份文件同步到 OSS 更安全"
+        }
+      ],
+      "acceptance": [
+        "能用 mysqldump 全量备份恢复",
+        "能结合 binlog 恢复到任意时间点",
+        "会写自动化备份脚本 + crontab"
+      ],
+      "questions": [
+        "全量备份的恢复点目标 (RPO) 是多少？",
+        "mysqldump 期间数据库会锁表吗？",
+        "为什么生产推荐 XtraBackup 而不是 mysqldump？"
+      ],
+      "source": "《MySQL 备份恢复》第1章"
+    },
+    {
+      "id": "security_group_practice",
+      "name": "安全组精细化配置实战",
+      "keywords": [
+        "安全组",
+        "网络安全",
+        "端口",
+        "安全组规则",
+        "最小开放"
+      ],
+      "goal": "掌握安全组规则设计，实现「最小开放」，能用安全组隔离环境。",
+      "env": "云平台控制台 · 至少 2 台 ECS",
+      "steps": [
+        {
+          "title": "理解安全组规则组成",
+          "detail": "规则 = (协议/端口 + 源 IP/安全组 + 策略)",
+          "expect": "能口述各要素",
+          "tip": "策略只有「允许」和「拒绝」两种"
+        },
+        {
+          "title": "为 Web 服务器创建安全组",
+          "detail": "控制台 → 安全组 → 创建 → 入方向：放通 80/443 (0.0.0.0/0)、22 (仅管理 IP)；出方向：全部放通",
+          "expect": "安全组创建成功",
+          "tip": "SSH 不要 0.0.0.0 开放，限定到公司/家里 IP"
+        },
+        {
+          "title": "为数据库创建独立安全组",
+          "detail": "入方向：放通 3306，源 = Web 安全组 ID；22 仅管理 IP",
+          "expect": "规则精准",
+          "tip": "用「安全组 ID」做源，比写 IP 网段更稳定"
+        },
+        {
+          "title": "绑定到实例",
+          "detail": "ECS → 安全组 → 加入安全组",
+          "expect": "ECS 列表显示新安全组",
+          "tip": "一台 ECS 可加入多个安全组（多组取并集）"
+        },
+        {
+          "title": "连通性测试",
+          "detail": "从 Web ECS mysql -h db-ip -P 3306 -uapp -p 能通；公网直接 telnet db-ip 3306 不通",
+          "expect": "内通外不通",
+          "tip": "测试时用 telnet / nc 而非 mysql 客户端，更快"
+        },
+        {
+          "title": "环境隔离",
+          "detail": "创建 dev/test/prod 三个安全组，分别给开发/测试/生产用",
+          "expect": "三组规则不同",
+          "tip": "生产安全组严格，开发环境宽松"
+        },
+        {
+          "title": "审计与维护",
+          "detail": "定期检查规则，删除不必要的开放",
+          "expect": "规则最小化",
+          "tip": "可用云安全中心扫"
+        }
+      ],
+      "acceptance": [
+        "理解安全组 vs 网络 ACL 区别",
+        "能用安全组实现「最小开放」原则",
+        "会用安全组引用（源 = 安全组 ID）"
+      ],
+      "questions": [
+        "安全组规则冲突时谁优先？",
+        "为什么不能用安全组做 WAF 替代？",
+        "一台 ECS 加入多个安全组，规则怎么算？"
+      ],
+      "source": "《云安全实战》第1章"
+    },
+    {
+      "id": "auto_scaling_setup",
+      "name": "弹性伸缩 AS 配置与压测验证",
+      "keywords": [
+        "弹性伸缩",
+        "as",
+        "autoscaling",
+        "自动扩缩容",
+        "压测"
+      ],
+      "goal": "配置弹性伸缩组，通过压测触发自动扩容，验证停机后又自动缩容。",
+      "env": "云主机镜像 · 弹性伸缩 AS 服务 · 负载均衡",
+      "steps": [
+        {
+          "title": "创建伸缩配置",
+          "detail": "AS → 伸缩组 → 创建 → 选实例规格/镜像/安全组",
+          "expect": "配置创建成功",
+          "tip": "镜像要装好你的应用，否则扩容出来啥也没跑"
+        },
+        {
+          "title": "创建伸缩组",
+          "detail": "最小 1、最大 5、期望 2，关联 SLB 健康检查",
+          "expect": "伸缩组创建，启动 2 台 ECS",
+          "tip": "期望值 = 初始数量"
+        },
+        {
+          "title": "配置扩缩容策略",
+          "detail": "扩容：CPU > 70% 持续 2 分钟加 1 台；缩容：CPU < 30% 持续 5 分钟减 1 台",
+          "expect": "规则保存",
+          "tip": "冷却时间（Cooldown）建议 60-300 秒"
+        },
+        {
+          "title": "压测工具准备",
+          "detail": "apt install stress-ng 或 ab（Apache Bench）",
+          "expect": "工具就绪",
+          "tip": "压测要小心，控制时长和强度"
+        },
+        {
+          "title": "触发扩容",
+          "detail": "在伸缩组内的 ECS 上跑 stress-ng --cpu 4 --timeout 600",
+          "expect": "2-5 分钟后 AS 自动加机器",
+          "tip": "伸缩组在云平台看「实例数」变化"
+        },
+        {
+          "title": "验证新机器",
+          "detail": "SLB 公网 IP 多次访问，分配到新机器",
+          "expect": "看到更多机器响应",
+          "tip": "新机器自动加入 SLB 后端"
+        },
+        {
+          "title": "验证缩容",
+          "detail": "停掉压测，观察 ECS 数量",
+          "expect": "5 分钟后逐步减回 2 台",
+          "tip": "缩容更保守，避免抖动"
+        }
+      ],
+      "acceptance": [
+        "能独立完成 AS 伸缩组配置",
+        "能用压测触发扩容和缩容",
+        "理解冷却时间、健康检查、最小最大实例数等参数"
+      ],
+      "questions": [
+        "为什么扩容很快，缩容很慢？",
+        "如果新机器的初始化时间长，怎么办？",
+        "如果 SLB 不健康但 CPU 正常，AS 怎么处理？"
+      ],
+      "source": "《弹性伸缩实战》第1章"
+    }
+  ],
+  "version": "2.0",
+  "total": 12
+}
